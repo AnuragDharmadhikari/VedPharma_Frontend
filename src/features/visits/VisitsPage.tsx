@@ -17,7 +17,7 @@ import {
   Calendar,
   User,
   ChevronRight,
-  Filter,
+  X,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -250,7 +250,9 @@ export default function VisitsPage() {
   // UI state
   const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PLANNED' | 'COMPLETED' | 'MISSED'>(
+    'ALL'
+  )
 
   // ── Data fetching ─────────────────────────────────────────
   // Owner/Manager see ALL visits via /visits
@@ -391,39 +393,64 @@ export default function VisitsPage() {
       </div>
 
       {/* ── Filters ── */}
-      <div className="vp-card p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            style={{ color: 'var(--vp-text-muted)' }}
+          />
+          <input
+            type="text"
+            placeholder="Search by doctor, specialty, or rep..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-dark"
+            style={{ paddingLeft: '2.5rem' }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
               style={{ color: 'var(--vp-text-muted)' }}
-            />
-            <input
-              type="text"
-              placeholder="Search by doctor, specialty, or rep..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-dark"
-              style={{ paddingLeft: '2.25rem' }}
-            />
-          </div>
-
-          {/* Status filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 shrink-0" style={{ color: 'var(--vp-text-muted)' }} />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="input-dark"
-              style={{ background: 'var(--vp-bg-surface)', minWidth: '140px' }}
             >
-              <option value="ALL">All Statuses</option>
-              <option value="PLANNED">Planned</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="MISSED">Missed</option>
-            </select>
-          </div>
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Status filter pills */}
+        <div className="flex gap-2">
+          {(['ALL', 'PLANNED', 'COMPLETED', 'MISSED'] as const).map((s) => {
+            const labels = {
+              ALL: 'All',
+              PLANNED: 'Planned',
+              COMPLETED: 'Completed',
+              MISSED: 'Missed',
+            }
+            const colors = {
+              ALL: 'var(--vp-teal)',
+              PLANNED: 'var(--vp-amber)',
+              COMPLETED: 'var(--vp-teal)',
+              MISSED: 'var(--vp-rose)',
+            }
+            const isActive = statusFilter === s
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: isActive ? colors[s] : 'var(--vp-bg-surface)',
+                  color: isActive ? '#FFFFFF' : 'var(--vp-text-secondary)',
+                  border: `1px solid ${isActive ? colors[s] : 'var(--vp-border)'}`,
+                  boxShadow: isActive ? 'var(--vp-shadow-sm)' : 'none',
+                }}
+              >
+                {labels[s]}
+              </button>
+            )
+          })}
         </div>
       </div>
 
