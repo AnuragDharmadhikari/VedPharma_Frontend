@@ -40,6 +40,7 @@ const AiPage = lazy(() => import('@/features/ai/AiPage'))
 const AuditPage = lazy(() => import('@/features/audit/AuditPage'))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const MainLayout = lazy(() => import('@/shared/components/MainLayout'))
+const OrderEditPage = lazy(() => import('@/features/orders/OrderEditPage'))
 
 export const router = createBrowserRouter([
   {
@@ -51,43 +52,42 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <SuspenseWrapper />,
+        children: [{ path: '/login', element: <LoginPage /> }],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <SuspenseWrapper />,
         children: [
-          { path: '/login', element: <LoginPage /> },
+          {
+            element: <MainLayout />,
+            children: [
+              { path: '/dashboard', element: <DashboardPage /> },
+              { path: '/profile', element: <ProfilePage /> },
+              { path: '/doctors', element: <DoctorsPage /> },
+              { path: '/doctors/:id', element: <DoctorDetailPage /> },
+              { path: '/chemists', element: <ChemistsPage /> },
+              { path: '/chemists/:id', element: <ChemistDetailPage /> },
+              { path: '/visits', element: <VisitsPage /> },
+              { path: '/visits/new', element: <VisitNewPage /> },
+              { path: '/visits/:id', element: <VisitDetailPage /> },
+              { path: '/products', element: <ProductsPage /> },
+              { path: '/products/:id', element: <ProductDetailPage /> },
+              { path: '/inventory', element: <InventoryPage /> },
+              { path: '/orders', element: <OrdersPage /> },
+              { path: '/orders/new', element: <OrderNewPage /> },
+              { path: '/orders/:id', element: <OrderDetailPage /> },
+              { path: '/orders/:id/edit', element: <OrderEditPage /> },
+            ],
+          },
         ],
       },
     ],
   },
   {
-  element: <ProtectedRoute />,
-  children: [
-    {
-      element: <SuspenseWrapper />,
-      children: [
-        {
-          element: <MainLayout />,
-          children: [
-            { path: '/dashboard',     element: <DashboardPage /> },
-            { path: '/profile',       element: <ProfilePage /> },
-            { path: '/doctors',       element: <DoctorsPage /> },
-            { path: '/doctors/:id',   element: <DoctorDetailPage /> },
-            { path: '/chemists',      element: <ChemistsPage /> },
-            { path: '/chemists/:id',  element: <ChemistDetailPage /> },
-            { path: '/visits',        element: <VisitsPage /> },
-            { path: '/visits/new',    element: <VisitNewPage /> },
-            { path: '/visits/:id',    element: <VisitDetailPage /> },
-            { path: '/products',      element: <ProductsPage /> },
-            { path: '/products/:id',  element: <ProductDetailPage /> },
-            { path: '/inventory',     element: <InventoryPage /> },
-            { path: '/orders',        element: <OrdersPage /> },
-            { path: '/orders/new',    element: <OrderNewPage /> },
-            { path: '/orders/:id',    element: <OrderDetailPage /> },
-          ],
-        },
-      ],
-    },
-  ],
-},
-{
     element: <ManagerRoute />,
     children: [
       {
@@ -96,19 +96,19 @@ export const router = createBrowserRouter([
           {
             element: <MainLayout />,
             children: [
-              { path: '/stockists',      element: <StockistsPage /> },
-              { path: '/stockists/:id',  element: <StockistDetailPage /> },
-              { path: '/invoices',       element: <InvoicesPage /> },
-              { path: '/invoices/:id',   element: <InvoiceDetailPage /> },
-              { path: '/payments',       element: <PaymentsPage /> },
-              { path: '/payments/new',   element: <PaymentNewPage /> },
-              { path: '/returns',        element: <ReturnsPage /> },
-              { path: '/territories',    element: <TerritoriesPage /> },
-              { path: '/targets',        element: <TargetsPage /> },
-              { path: '/analytics',      element: <AnalyticsPage /> },
-              { path: '/ai',             element: <AiPage /> },
-              { path: '/schemes',        element: <SchemesPage /> },
-              { path: '/users',          element: <UsersPage /> },
+              { path: '/stockists', element: <StockistsPage /> },
+              { path: '/stockists/:id', element: <StockistDetailPage /> },
+              { path: '/invoices', element: <InvoicesPage /> },
+              { path: '/invoices/:id', element: <InvoiceDetailPage /> },
+              { path: '/payments', element: <PaymentsPage /> },
+              { path: '/payments/new', element: <PaymentNewPage /> },
+              { path: '/returns', element: <ReturnsPage /> },
+              { path: '/territories', element: <TerritoriesPage /> },
+              { path: '/targets', element: <TargetsPage /> },
+              { path: '/analytics', element: <AnalyticsPage /> },
+              { path: '/ai', element: <AiPage /> },
+              { path: '/schemes', element: <SchemesPage /> },
+              { path: '/users', element: <UsersPage /> },
             ],
           },
         ],
@@ -123,9 +123,7 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <MainLayout />,
-            children: [
-              { path: '/audit', element: <AuditPage /> },
-            ],
+            children: [{ path: '/audit', element: <AuditPage /> }],
           },
         ],
       },

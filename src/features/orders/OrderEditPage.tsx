@@ -1,10 +1,9 @@
-import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { format, parseISO } from 'date-fns'
 import {
   ArrowLeft,
   Plus,
@@ -12,22 +11,19 @@ import {
   Loader2,
   ShoppingCart,
   Package,
-  Truck,
   IndianRupee,
+  Info,
   Tag,
   Gift,
-  Info,
 } from 'lucide-react'
-import { useAuth } from '@/shared/hooks/useAuth'
-import { useCreateOrderMutation } from './ordersApi'
+import { format, parseISO } from 'date-fns'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useGetOrderByIdQuery, useUpdateOrderMutation } from './ordersApi'
 import { useGetAllProductsQuery } from '@/features/products/productsApi'
-import { useGetAllChemistsQuery, useGetChemistsByRepQuery } from '@/features/chemists/chemistsApi'
-import { useGetAllStockistsQuery } from '@/features/stockists/stockistsApi'
 import {
   useGetSchemesByChemistQuery,
   useGetSchemesByStockistQuery,
 } from '@/features/schemes/schemesApi'
-import type { OrderItemRequest } from '@/types/order'
 import type { SchemeDto } from '@/types/scheme'
 
 // ── Zod schema ────────────────────────────────────────────────
@@ -37,27 +33,13 @@ const orderItemSchema = z.object({
   discountPct: z.number().min(0).max(100).optional(),
 })
 
-const orderNewSchema = z
-  .object({
-    chemistId: z.string().min(1, 'Please select a chemist'),
-    fulfillmentType: z.enum(['DIRECT', 'VIA_STOCKIST']),
-    stockistId: z.string().optional(),
-    orderDate: z.string().min(1, 'Order date is required'),
-    orderItems: z.array(orderItemSchema).min(1, 'Add at least one product'),
-  })
-  .refine(
-    (data) => {
-      if (data.fulfillmentType === 'VIA_STOCKIST') {
-        return !!data.stockistId && data.stockistId.length > 0
-      }
-      return true
-    },
-    { message: 'Please select a stockist', path: ['stockistId'] }
-  )
+const orderEditSchema = z.object({
+  orderItems: z.array(orderItemSchema).min(1, 'Add at least one product'),
+})
 
-type OrderNewForm = z.infer<typeof orderNewSchema>
+type OrderEditForm = z.infer<typeof orderEditSchema>
 
-// ── Scheme badge helper ───────────────────────────────────────
+// ── SchemeBadge ───────────────────────────────────────────────
 function SchemeBadge({ scheme }: { scheme: SchemeDto }) {
   const isQtyFree = scheme.schemeType === 'QUANTITY_FREE'
   return (
@@ -99,9 +81,9 @@ function SchemeBadge({ scheme }: { scheme: SchemeDto }) {
 interface OrderItemRowProps {
   index: number
   onRemove: () => void
-  register: ReturnType<typeof useForm<OrderNewForm>>['register']
-  setValue: ReturnType<typeof useForm<OrderNewForm>>['setValue']
-  control: ReturnType<typeof useForm<OrderNewForm>>['control']
+  register: ReturnType<typeof useForm<OrderEditForm>>['register']
+  setValue: ReturnType<typeof useForm<OrderEditForm>>['setValue']
+  control: ReturnType<typeof useForm<OrderEditForm>>['control']
   schemes: SchemeDto[]
 }
 
@@ -116,15 +98,12 @@ function OrderItemRow({
   const { data: productsData } = useGetAllProductsQuery()
   const products = productsData?.data ?? []
 
-  // Live field subscriptions via useWatch
   const productId = useWatch({ control, name: `orderItems.${index}.productId` })
   const quantity = useWatch({ control, name: `orderItems.${index}.quantity` })
   const discountPct = useWatch({ control, name: `orderItems.${index}.discountPct` })
 
   const selectedProduct = products.find((p) => p.id === productId)
 
-  // Find applicable scheme for this product
-  // Scheme fires only if quantity >= scheme.minQuantity
   const applicableScheme = useMemo(() => {
     if (!selectedProduct || !quantity) return null
     return (
@@ -134,26 +113,15 @@ function OrderItemRow({
     )
   }, [selectedProduct, quantity, schemes])
 
-  // Exact backend formula:
-  // lineTotal = unitPrice × qty × (1 - (discountPct + schemeDiscountPct) / 100)
-  // For QUANTITY_FREE: schemeDiscountPct = 0, lineTotal unchanged, freeQty added
   const calculation = useMemo(() => {
     if (!selectedProduct || !quantity) {
-      return {
-        unitPrice: 0,
-        lineTotal: 0,
-        schemeDiscountPct: 0,
-        freeQuantity: 0,
-        totalDiscountPct: 0,
-      }
+      return { unitPrice: 0, lineTotal: 0, schemeDiscountPct: 0, freeQuantity: 0 }
     }
     const unitPrice = Number(selectedProduct.dealerPrice)
     const qty = Number(quantity) || 0
     const disc = Number(discountPct) || 0
-
     let schemeDiscountPct = 0
     let freeQuantity = 0
-
     if (applicableScheme) {
       if (applicableScheme.schemeType === 'PERCENTAGE_DISCOUNT') {
         schemeDiscountPct = Number(applicableScheme.discountPct) || 0
@@ -161,11 +129,9 @@ function OrderItemRow({
         freeQuantity = applicableScheme.freeQuantity ?? 0
       }
     }
-
-    const totalDiscountPct = disc + schemeDiscountPct
-    const lineTotal = unitPrice * qty * (1 - totalDiscountPct / 100)
-
-    return { unitPrice, lineTotal, schemeDiscountPct, freeQuantity, totalDiscountPct }
+    const totalDisc = disc + schemeDiscountPct
+    const lineTotal = unitPrice * qty * (1 - totalDisc / 100)
+    return { unitPrice, lineTotal, schemeDiscountPct, freeQuantity }
   }, [selectedProduct, quantity, discountPct, applicableScheme])
 
   return (
@@ -173,7 +139,6 @@ function OrderItemRow({
       className="p-4 rounded-xl space-y-3"
       style={{ background: 'var(--vp-bg-surface-alt)', border: '1px solid var(--vp-border)' }}
     >
-      {/* Row header */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold" style={{ color: 'var(--vp-text-primary)' }}>
           Item {index + 1}
@@ -190,7 +155,6 @@ function OrderItemRow({
         </button>
       </div>
 
-      {/* Product selector */}
       <div>
         <label
           className="block text-xs font-semibold mb-1"
@@ -213,7 +177,6 @@ function OrderItemRow({
         </select>
       </div>
 
-      {/* Quantity + Manual Discount */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label
@@ -248,13 +211,12 @@ function OrderItemRow({
         </div>
       </div>
 
-      {/* Calculation breakdown — only shown when product is selected */}
-      {selectedProduct && quantity > 0 && (
+      {/* Calculation breakdown */}
+      {selectedProduct && Number(quantity) > 0 && (
         <div
           className="rounded-xl overflow-hidden"
           style={{ border: '1px solid var(--vp-border)' }}
         >
-          {/* Breakdown header */}
           <div
             className="px-3 py-2 flex items-center gap-1.5"
             style={{ background: 'var(--vp-bg-hover)' }}
@@ -267,23 +229,17 @@ function OrderItemRow({
               Calculation Breakdown
             </p>
           </div>
-
           <div className="p-3 space-y-1.5">
-            {/* Unit price */}
             <div className="flex items-center justify-between text-xs">
               <span style={{ color: 'var(--vp-text-muted)' }}>Unit Price (dealer)</span>
               <span style={{ color: 'var(--vp-text-secondary)' }}>
                 ₹{calculation.unitPrice.toFixed(2)}
               </span>
             </div>
-
-            {/* Quantity */}
             <div className="flex items-center justify-between text-xs">
               <span style={{ color: 'var(--vp-text-muted)' }}>Quantity</span>
               <span style={{ color: 'var(--vp-text-secondary)' }}>× {Number(quantity)}</span>
             </div>
-
-            {/* Subtotal before discount */}
             <div
               className="flex items-center justify-between text-xs pt-1.5"
               style={{ borderTop: '1px dashed var(--vp-border)' }}
@@ -293,8 +249,6 @@ function OrderItemRow({
                 ₹{(calculation.unitPrice * Number(quantity)).toFixed(2)}
               </span>
             </div>
-
-            {/* Manual discount */}
             {Number(discountPct) > 0 && (
               <div className="flex items-center justify-between text-xs">
                 <span style={{ color: 'var(--vp-rose)' }}>
@@ -308,9 +262,7 @@ function OrderItemRow({
                 </span>
               </div>
             )}
-
-            {/* Scheme discount — only if applicable */}
-            {applicableScheme && applicableScheme.schemeType === 'PERCENTAGE_DISCOUNT' && (
+            {applicableScheme?.schemeType === 'PERCENTAGE_DISCOUNT' && (
               <div className="flex items-center justify-between text-xs">
                 <span style={{ color: 'var(--vp-purple)' }}>
                   Scheme Discount ({Number(applicableScheme.discountPct)}%) 🎯
@@ -324,9 +276,7 @@ function OrderItemRow({
                 </span>
               </div>
             )}
-
-            {/* Free quantity — only if applicable */}
-            {applicableScheme && applicableScheme.schemeType === 'QUANTITY_FREE' && (
+            {applicableScheme?.schemeType === 'QUANTITY_FREE' && (
               <div className="flex items-center justify-between text-xs">
                 <span style={{ color: 'var(--vp-teal)' }}>Free Units (scheme) 🎁</span>
                 <span
@@ -337,29 +287,21 @@ function OrderItemRow({
                 </span>
               </div>
             )}
-
-            {/* Scheme not triggered warning */}
             {(() => {
-              const potentialScheme = schemes.find((s) => s.productId === selectedProduct.id)
-              if (
-                potentialScheme &&
-                !applicableScheme &&
-                Number(quantity) < potentialScheme.minQuantity
-              ) {
+              const potential = schemes.find((s) => s.productId === selectedProduct.id)
+              if (potential && !applicableScheme && Number(quantity) < potential.minQuantity) {
                 return (
                   <div
                     className="flex items-center gap-1.5 text-xs p-2 rounded-lg mt-1"
                     style={{ background: 'var(--vp-amber-light)', color: 'var(--vp-amber)' }}
                   >
                     <Info className="w-3 h-3 shrink-0" />
-                    Order {potentialScheme.minQuantity - Number(quantity)} more to unlock scheme
+                    Order {potential.minQuantity - Number(quantity)} more to unlock scheme
                   </div>
                 )
               }
               return null
             })()}
-
-            {/* Line Total */}
             <div
               className="flex items-center justify-between pt-1.5 mt-1"
               style={{ borderTop: '1px solid var(--vp-border)' }}
@@ -385,107 +327,135 @@ function OrderItemRow({
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function OrderNewPage() {
+export default function OrderEditPage() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, isOwnerOrManager } = useAuth()
-  const [createOrder, { isLoading }] = useCreateOrderMutation()
+  const [updateOrder, { isLoading }] = useUpdateOrderMutation()
 
-  const { data: allChemistsData } = useGetAllChemistsQuery(undefined, { skip: !isOwnerOrManager })
-  const { data: repChemistsData } = useGetChemistsByRepQuery(user?.id ?? '', {
-    skip: isOwnerOrManager || !user?.id,
-  })
-  const chemists = isOwnerOrManager ? (allChemistsData?.data ?? []) : (repChemistsData?.data ?? [])
-
-  const { data: stockistsData } = useGetAllStockistsQuery()
-  const stockists = stockistsData?.data ?? []
+  const { data: orderData, isLoading: orderLoading } = useGetOrderByIdQuery(id ?? '', { skip: !id })
+  const order = orderData?.data
 
   const { data: productsData } = useGetAllProductsQuery()
   const products = useMemo(() => productsData?.data ?? [], [productsData])
+
+  // Fetch schemes for the order's buyer
+  const { data: chemistSchemesData } = useGetSchemesByChemistQuery(
+    order?.chemistId?.toString() ?? '',
+    { skip: !order || order.fulfillmentType === 'VIA_STOCKIST' }
+  )
+  const { data: stockistSchemesData } = useGetSchemesByStockistQuery(
+    order?.stockistId?.toString() ?? '',
+    { skip: !order || order.fulfillmentType === 'DIRECT' || !order.stockistId }
+  )
+  const activeSchemes: SchemeDto[] = useMemo(() => {
+    if (order?.fulfillmentType === 'VIA_STOCKIST') return stockistSchemesData?.data ?? []
+    return chemistSchemesData?.data ?? []
+  }, [order, chemistSchemesData, stockistSchemesData])
 
   const {
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
+    reset,
     formState: { errors },
-  } = useForm<OrderNewForm>({
-    resolver: zodResolver(orderNewSchema),
+  } = useForm<OrderEditForm>({
+    resolver: zodResolver(orderEditSchema),
+    // Pre-populate with existing order items
+    // We need to find the productId from the product name since OrderItemDto has productId
     defaultValues: {
-      fulfillmentType: 'DIRECT',
-      orderDate: format(new Date(), 'yyyy-MM-dd'),
-      orderItems: [{ productId: '', quantity: 1, discountPct: 0 }],
+      orderItems:
+        order?.orderItems.map((item) => ({
+          productId: item.productId.toString(),
+          quantity: item.quantity,
+          discountPct: Number(item.discountPct) || 0,
+        })) ?? [],
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'orderItems' })
 
-  const watchFulfillment = watch('fulfillmentType')
-
-  const watchChemistId = watch('chemistId')
-
-  const watchStockistId = watch('stockistId')
+  // Reset form with order data once it loads
+  useEffect(() => {
+    if (order) {
+      reset({
+        orderItems: order.orderItems.map((item) => ({
+          productId: item.productId.toString(),
+          quantity: item.quantity,
+          discountPct: Number(item.discountPct) || 0,
+        })),
+      })
+    }
+  }, [order, reset])
 
   const watchedItems = useWatch({ control, name: 'orderItems' })
 
-  // Fetch schemes based on fulfillment type and selected buyer
-  const { data: chemistSchemesData } = useGetSchemesByChemistQuery(watchChemistId ?? '', {
-    skip: !watchChemistId || watchFulfillment === 'VIA_STOCKIST',
-  })
-  const { data: stockistSchemesData } = useGetSchemesByStockistQuery(watchStockistId ?? '', {
-    skip: !watchStockistId || watchFulfillment === 'DIRECT',
-  })
-
-  // Active schemes for the selected buyer
-  const activeSchemes: SchemeDto[] = useMemo(() => {
-    if (watchFulfillment === 'VIA_STOCKIST') {
-      return stockistSchemesData?.data ?? []
-    }
-    return chemistSchemesData?.data ?? []
-  }, [watchFulfillment, chemistSchemesData, stockistSchemesData])
-
-  // Estimated order total — mirrors exact backend formula
   const orderTotal = useMemo(() => {
-    return watchedItems.reduce((sum, item) => {
+    return (watchedItems ?? []).reduce((sum, item) => {
       const product = products.find((p) => p.id === item.productId)
       if (!product || !item.quantity) return sum
       const unitPrice = Number(product.dealerPrice)
       const qty = Number(item.quantity) || 0
       const disc = Number(item.discountPct) || 0
-
-      // Check if scheme applies
-      const scheme = activeSchemes.find((s) => s.productId === product.id && qty >= s.minQuantity)
-      const schemeDisc =
-        scheme?.schemeType === 'PERCENTAGE_DISCOUNT' ? Number(scheme.discountPct) || 0 : 0
-
-      const totalDisc = disc + schemeDisc
-      return sum + unitPrice * qty * (1 - totalDisc / 100)
+      // No scheme discount on edit — schemes don't re-apply on update
+      return sum + unitPrice * qty * (1 - disc / 100)
     }, 0)
-  }, [watchedItems, products, activeSchemes])
+  }, [watchedItems, products])
 
-  const onSubmit = async (data: OrderNewForm) => {
+  const onSubmit = async (data: OrderEditForm) => {
+    if (!id) return
     try {
-      await createOrder({
-        repId: user?.id ?? '',
-        chemistId: data.chemistId,
-        stockistId: data.fulfillmentType === 'VIA_STOCKIST' ? data.stockistId : undefined,
-        fulfillmentType: data.fulfillmentType,
-        orderDate: data.orderDate,
-        orderItems: data.orderItems.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          discountPct:
-            item.discountPct !== undefined
-              ? (item.discountPct as unknown as OrderItemRequest['discountPct'])
-              : undefined,
-        })),
+      await updateOrder({
+        id,
+        body: {
+          orderItems: data.orderItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            // Send discountPct only if non-zero — backend defaults to 0 if absent
+            // Do NOT cast — just pass the number directly, Axios serializes it correctly
+            ...(item.discountPct && item.discountPct > 0 ? { discountPct: item.discountPct } : {}),
+          })),
+        },
       }).unwrap()
-      toast.success('Order created successfully')
-      navigate('/orders')
+      toast.success('Order updated successfully')
+      navigate(`/orders/${id}`)
     } catch (err: unknown) {
       const error = err as { data?: { message?: string } }
-      toast.error(error?.data?.message ?? 'Failed to create order')
+      toast.error(error?.data?.message ?? 'Failed to update order')
     }
+  }
+
+  // ── Loading ───────────────────────────────────────────────
+  if (orderLoading) {
+    return (
+      <div className="space-y-6 animate-fade-up max-w-3xl mx-auto">
+        <Skeleton className="h-8 w-48 skeleton-shimmer" />
+        <Skeleton className="h-64 w-full skeleton-shimmer" />
+      </div>
+    )
+  }
+
+  // ── Not found / not pending ───────────────────────────────
+  if (!order || order.status !== 'PENDING') {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: 'var(--vp-rose-light)' }}
+        >
+          <ShoppingCart className="w-8 h-8" style={{ color: 'var(--vp-rose)' }} />
+        </div>
+        <p className="text-lg font-semibold mb-1" style={{ color: 'var(--vp-text-primary)' }}>
+          {!order ? 'Order not found' : 'Order cannot be edited'}
+        </p>
+        <p className="text-sm mb-4" style={{ color: 'var(--vp-text-muted)' }}>
+          {!order ? 'Invalid link.' : 'Only PENDING orders can be edited.'}
+        </p>
+        <button onClick={() => navigate('/orders')} className="btn-primary">
+          Back to Orders
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -494,7 +464,7 @@ export default function OrderNewPage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate('/orders')}
+          onClick={() => navigate(`/orders/${id}`)}
           className="p-2 rounded-xl transition-colors"
           style={{
             background: 'var(--vp-bg-surface)',
@@ -511,178 +481,54 @@ export default function OrderNewPage() {
             className="text-xl font-bold"
             style={{ fontFamily: 'var(--font-display)', color: 'var(--vp-text-primary)' }}
           >
-            New Order
+            Edit Order
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--vp-text-muted)' }}>
-            Create a new sales order for a chemist
+            {order.chemistFirmName} • {format(parseISO(order.orderDate), 'MMM d, yyyy')}
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* ── Order Details Card ── */}
+      {/* ── Order Info (read-only) ── */}
+      <div
+        className="p-4 rounded-xl flex items-center gap-3"
+        style={{ background: 'var(--vp-amber-light)', border: '1px solid rgba(245,158,11,0.2)' }}
+      >
+        <Info className="w-4 h-4 shrink-0" style={{ color: 'var(--vp-amber)' }} />
+        <p className="text-sm" style={{ color: 'var(--vp-amber)' }}>
+          You can only edit order items. Chemist, fulfillment type, and date cannot be changed.
+        </p>
+      </div>
+
+      {/* ── Active Schemes ── */}
+      {activeSchemes.length > 0 && (
         <div className="vp-card p-6">
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-4">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--vp-teal-light)' }}
+              style={{ background: 'var(--vp-amber-light)' }}
             >
-              <ShoppingCart className="w-5 h-5" style={{ color: 'var(--vp-teal)' }} />
+              <Tag className="w-5 h-5" style={{ color: 'var(--vp-amber)' }} />
             </div>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--vp-text-primary)' }}>
-              Order Details
-            </h2>
+            <div>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--vp-text-primary)' }}>
+                Active Schemes
+              </h2>
+              <p className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
+                Auto-apply when minimum quantity is met
+              </p>
+            </div>
           </div>
-
-          <div className="space-y-4">
-            {/* Chemist */}
-            <div>
-              <label
-                className="block text-sm font-semibold mb-1.5"
-                style={{ color: 'var(--vp-text-secondary)' }}
-              >
-                Chemist *
-              </label>
-              <select
-                {...register('chemistId')}
-                className="input-dark"
-                style={{ background: 'var(--vp-bg-surface)' }}
-              >
-                <option value="">Select a chemist</option>
-                {chemists.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.firmName} — {c.city}, {c.state}
-                  </option>
-                ))}
-              </select>
-              {errors.chemistId && (
-                <p className="text-xs mt-1 text-rose-500">{errors.chemistId.message}</p>
-              )}
-            </div>
-
-            {/* Fulfillment Type */}
-            <div>
-              <label
-                className="block text-sm font-semibold mb-2"
-                style={{ color: 'var(--vp-text-secondary)' }}
-              >
-                Fulfillment Type *
-              </label>
-              <div className="flex gap-3">
-                {(['DIRECT', 'VIA_STOCKIST'] as const).map((type) => {
-                  const isSelected = watchFulfillment === type
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        setValue('fulfillmentType', type)
-                        if (type === 'DIRECT') setValue('stockistId', '')
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all"
-                      style={{
-                        background: isSelected
-                          ? type === 'DIRECT'
-                            ? 'var(--vp-teal)'
-                            : 'var(--vp-purple)'
-                          : 'var(--vp-bg-surface)',
-                        color: isSelected ? '#FFFFFF' : 'var(--vp-text-secondary)',
-                        border: `1px solid ${
-                          isSelected
-                            ? type === 'DIRECT'
-                              ? 'var(--vp-teal)'
-                              : 'var(--vp-purple)'
-                            : 'var(--vp-border)'
-                        }`,
-                      }}
-                    >
-                      {type === 'DIRECT' ? (
-                        <>
-                          <Package className="w-4 h-4" /> Direct
-                        </>
-                      ) : (
-                        <>
-                          <Truck className="w-4 h-4" /> Via Stockist
-                        </>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Stockist */}
-            {watchFulfillment === 'VIA_STOCKIST' && (
-              <div>
-                <label
-                  className="block text-sm font-semibold mb-1.5"
-                  style={{ color: 'var(--vp-text-secondary)' }}
-                >
-                  Stockist *
-                </label>
-                <select
-                  {...register('stockistId')}
-                  className="input-dark"
-                  style={{ background: 'var(--vp-bg-surface)' }}
-                >
-                  <option value="">Select a stockist</option>
-                  {stockists.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.firmName} — {s.city}, {s.state}
-                    </option>
-                  ))}
-                </select>
-                {errors.stockistId && (
-                  <p className="text-xs mt-1 text-rose-500">{errors.stockistId.message}</p>
-                )}
-              </div>
-            )}
-
-            {/* Order Date */}
-            <div>
-              <label
-                className="block text-sm font-semibold mb-1.5"
-                style={{ color: 'var(--vp-text-secondary)' }}
-              >
-                Order Date *
-              </label>
-              <input {...register('orderDate')} type="date" className="input-dark" />
-              {errors.orderDate && (
-                <p className="text-xs mt-1 text-rose-500">{errors.orderDate.message}</p>
-              )}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {activeSchemes.map((scheme) => (
+              <SchemeBadge key={scheme.id} scheme={scheme} />
+            ))}
           </div>
         </div>
+      )}
 
-        {/* ── Active Schemes Panel ── */}
-        {/* Shows only when a buyer is selected and schemes exist */}
-        {activeSchemes.length > 0 && (
-          <div className="vp-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: 'var(--vp-amber-light)' }}
-              >
-                <Tag className="w-5 h-5" style={{ color: 'var(--vp-amber)' }} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold" style={{ color: 'var(--vp-text-primary)' }}>
-                  Active Schemes
-                </h2>
-                <p className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
-                  These will auto-apply when minimum quantity is met
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {activeSchemes.map((scheme) => (
-                <SchemeBadge key={scheme.id} scheme={scheme} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Order Items Card ── */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* ── Order Items ── */}
         <div className="vp-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
@@ -697,7 +543,7 @@ export default function OrderNewPage() {
                   Order Items
                 </h2>
                 <p className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
-                  At least one item required
+                  Add, remove, or update quantities
                 </p>
               </div>
             </div>
@@ -723,36 +569,51 @@ export default function OrderNewPage() {
                 register={register}
                 setValue={setValue}
                 control={control}
-                schemes={activeSchemes}
+                schemes={[]}
               />
             ))}
           </div>
 
-          {/* Order Total */}
+          {/* Scheme warning */}
+          <div
+            className="mt-4 p-3 rounded-xl flex items-start gap-2"
+            style={{
+              background: 'var(--vp-amber-light)',
+              border: '1px solid rgba(245,158,11,0.2)',
+            }}
+          >
+            <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--vp-amber)' }} />
+            <div className="text-xs" style={{ color: 'var(--vp-amber)' }}>
+              <strong>Note:</strong> Saving changes removes all scheme discounts and free units.
+              Scheme pricing only applies on new orders.{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/orders/new')}
+                className="underline font-semibold"
+                style={{ color: 'var(--vp-amber)' }}
+              >
+                Create a new order instead →
+              </button>
+            </div>
+          </div>
+
+          {/* Total */}
           {fields.length > 0 && (
             <div
-              className="mt-5 pt-4 space-y-2"
+              className="flex items-center justify-between mt-5 pt-4"
               style={{ borderTop: '1px solid var(--vp-border)' }}
             >
-              <div className="flex items-center justify-between">
-                <p className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
-                  * Scheme benefits (free units) are physical goods and don't reduce the total
-                  amount
+              <p className="text-sm font-semibold" style={{ color: 'var(--vp-text-secondary)' }}>
+                Estimated Order Total
+              </p>
+              <div className="flex items-center gap-1">
+                <IndianRupee className="w-4 h-4" style={{ color: 'var(--vp-text-primary)' }} />
+                <p
+                  className="text-xl font-bold"
+                  style={{ color: 'var(--vp-text-primary)', fontFamily: 'var(--font-display)' }}
+                >
+                  {orderTotal.toFixed(2)}
                 </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold" style={{ color: 'var(--vp-text-secondary)' }}>
-                  Estimated Order Total
-                </p>
-                <div className="flex items-center gap-1">
-                  <IndianRupee className="w-4 h-4" style={{ color: 'var(--vp-text-primary)' }} />
-                  <p
-                    className="text-xl font-bold"
-                    style={{ color: 'var(--vp-text-primary)', fontFamily: 'var(--font-display)' }}
-                  >
-                    {orderTotal.toFixed(2)}
-                  </p>
-                </div>
               </div>
             </div>
           )}
@@ -762,7 +623,7 @@ export default function OrderNewPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => navigate('/orders')}
+            onClick={() => navigate(`/orders/${id}`)}
             className="btn-secondary flex-1"
           >
             Cancel
@@ -773,7 +634,7 @@ export default function OrderNewPage() {
             className="btn-primary flex-1 flex items-center justify-center gap-2"
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isLoading ? 'Creating order...' : 'Create Order'}
+            {isLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
