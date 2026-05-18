@@ -45,6 +45,18 @@ export interface InvoiceDto {
   updatedAt: string
 }
 
+export interface OutstandingInvoiceDto {
+  invoiceId: string
+  invoiceNumber: string
+  billedToName: string
+  grandTotal: number
+  totalPaid: number
+  outstandingAmount: number
+  status: string
+  chemistId: string | null
+  stockistId: string | null
+}
+
 export interface GenerateInvoiceRequest {
   orderId: string
 }

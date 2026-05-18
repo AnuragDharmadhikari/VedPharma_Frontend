@@ -42,6 +42,7 @@ const AuditPage = lazy(() => import('@/features/audit/AuditPage'))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const MainLayout = lazy(() => import('@/shared/components/MainLayout'))
 const OrderEditPage = lazy(() => import('@/features/orders/OrderEditPage'))
+const PaymentDetailPage = lazy(() => import('@/features/payments/PaymentDetailPage'))
 
 export const router = createBrowserRouter([
   {
@@ -102,6 +103,7 @@ export const router = createBrowserRouter([
               { path: '/invoices', element: <InvoicesPage /> },
               { path: '/invoices/:id', element: <InvoiceDetailPage /> },
               { path: '/payments', element: <PaymentsPage /> },
+              { path: '/payments/:id', element: <PaymentDetailPage /> },
               { path: '/payments/new', element: <PaymentNewPage /> },
               { path: '/returns', element: <ReturnsPage /> },
               { path: '/territories', element: <TerritoriesPage /> },

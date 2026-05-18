@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import {
@@ -10,9 +11,11 @@ import {
   Truck,
   Hash,
   ChevronRight,
+  CreditCard,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useGetInvoiceByIdQuery } from './invoicesApi'
+import { useGetAllPaymentsQuery } from '@/features/payments/paymentsApi'
 import type { InvoiceLineItemDto } from '@/types/billing'
 
 // ── Status config ─────────────────────────────────────────────
@@ -25,6 +28,14 @@ const statusConfig = {
     bg: 'var(--vp-amber-light)',
   },
   PAID: { label: 'Paid', color: 'var(--vp-purple)', bg: 'var(--vp-purple-light)' },
+}
+
+const modeColors: Record<string, string> = {
+  CASH: 'var(--vp-teal)',
+  CHEQUE: 'var(--vp-amber)',
+  NEFT: 'var(--vp-purple)',
+  RTGS: 'var(--vp-purple)',
+  UPI: 'var(--vp-teal)',
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -45,7 +56,25 @@ export default function InvoiceDetailPage() {
   const navigate = useNavigate()
 
   const { data: invoiceData, isLoading, isError } = useGetInvoiceByIdQuery(id ?? '', { skip: !id })
+  const { data: paymentsData } = useGetAllPaymentsQuery()
+
   const invoice = invoiceData?.data
+
+  // Filter payments that have an allocation for this invoice
+  const invoicePayments = useMemo(() => {
+    if (!paymentsData?.data || !invoice) return []
+    return paymentsData.data.filter((payment) =>
+      payment.allocations.some((alloc) => alloc.invoiceId === invoice.id)
+    )
+  }, [paymentsData, invoice])
+
+  // Total amount paid against this invoice
+  const totalPaid = useMemo(() => {
+    return invoicePayments.reduce((sum, payment) => {
+      const alloc = payment.allocations.find((a) => a.invoiceId === invoice?.id)
+      return sum + Number(alloc?.allocatedAmount ?? 0)
+    }, 0)
+  }, [invoicePayments, invoice])
 
   if (isLoading) {
     return (
@@ -121,7 +150,6 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        {/* View Order button */}
         <button
           onClick={() => navigate(`/orders/${invoice.orderId}`)}
           className="btn-secondary flex items-center gap-2 text-sm self-start sm:self-auto"
@@ -439,6 +467,145 @@ export default function InvoiceDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Payment History — full width below the grid ── */}
+        {invoicePayments.length > 0 && (
+          <div className="lg:col-span-3">
+            <div className="vp-card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'var(--vp-teal-light)' }}
+                >
+                  <CreditCard className="w-5 h-5" style={{ color: 'var(--vp-teal)' }} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold" style={{ color: 'var(--vp-text-primary)' }}>
+                    Payment History
+                  </h2>
+                  <p className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
+                    {invoicePayments.length} payment{invoicePayments.length !== 1 ? 's' : ''}{' '}
+                    recorded against this invoice
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {invoicePayments.map((payment) => {
+                  const alloc = payment.allocations.find((a) => a.invoiceId === invoice.id)
+                  if (!alloc) return null
+                  const modeColor = modeColors[payment.paymentMode] ?? 'var(--vp-teal)'
+                  return (
+                    <div
+                      key={payment.id}
+                      onClick={() => navigate(`/payments/${payment.id}`)}
+                      className="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-colors"
+                      style={{
+                        background: 'var(--vp-bg-surface-alt)',
+                        border: '1px solid var(--vp-border)',
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = 'var(--vp-bg-hover)')
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = 'var(--vp-bg-surface-alt)')
+                      }
+                    >
+                      {/* Mode icon */}
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold"
+                        style={{ background: `${modeColor}15`, color: modeColor }}
+                      >
+                        {payment.paymentMode}
+                      </div>
+
+                      {/* Payment info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p
+                            className="text-sm font-semibold"
+                            style={{ color: 'var(--vp-text-primary)' }}
+                          >
+                            {payment.paymentNumber}
+                          </p>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                            style={{ background: `${modeColor}15`, color: modeColor }}
+                          >
+                            {payment.paymentMode}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          <span className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
+                            {format(parseISO(payment.paymentDate), 'MMM d, yyyy')}
+                          </span>
+                          {payment.referenceNumber && (
+                            <span className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
+                              Ref: {payment.referenceNumber}
+                            </span>
+                          )}
+                          {payment.notes && (
+                            <span className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
+                              {payment.notes}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Allocated amount + remaining */}
+                      <div className="text-right shrink-0">
+                        <div className="flex items-center gap-0.5 justify-end">
+                          <IndianRupee
+                            className="w-3.5 h-3.5"
+                            style={{ color: 'var(--vp-teal)' }}
+                          />
+                          <p className="text-sm font-bold" style={{ color: 'var(--vp-teal)' }}>
+                            {Number(alloc.allocatedAmount).toFixed(2)}
+                          </p>
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--vp-text-muted)' }}>
+                          Remaining after: ₹{Number(alloc.remainingAmount).toFixed(2)}
+                        </p>
+                      </div>
+                      <ChevronRight
+                        className="w-4 h-4 shrink-0"
+                        style={{ color: 'var(--vp-text-muted)' }}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Total paid summary */}
+              <div
+                className="flex items-center justify-between mt-4 pt-4"
+                style={{ borderTop: '1px solid var(--vp-border)' }}
+              >
+                <div>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: 'var(--vp-text-secondary)' }}
+                  >
+                    Total Paid Against This Invoice
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--vp-text-muted)' }}>
+                    Grand Total: ₹{Number(invoice.grandTotal).toFixed(2)} — Remaining: ₹
+                    {Math.max(0, Number(invoice.grandTotal) - totalPaid).toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <IndianRupee className="w-4 h-4" style={{ color: 'var(--vp-teal)' }} />
+                  <p
+                    className="text-xl font-bold"
+                    style={{ color: 'var(--vp-teal)', fontFamily: 'var(--font-display)' }}
+                  >
+                    {totalPaid.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { baseApi } from '@/app/baseApi'
 import type { ApiResponse } from '@/types/api'
-import type { InvoiceDto } from '@/types/billing'
+import type { InvoiceDto, OutstandingInvoiceDto } from '@/types/billing'
 
 export const invoicesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -41,6 +41,11 @@ export const invoicesApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Invoice'],
     }),
+
+    getOutstandingInvoices: builder.query<ApiResponse<OutstandingInvoiceDto[]>, void>({
+  query: () => ({ url: '/invoices/outstanding', method: 'GET' }),
+  providesTags: ['Invoice'],
+}),
   }),
 })
 
@@ -49,4 +54,5 @@ export const {
   useGetInvoiceByIdQuery,
   useGenerateInvoiceMutation,
   useUpdateInvoiceStatusMutation,
+  useGetOutstandingInvoicesQuery,
 } = invoicesApi
