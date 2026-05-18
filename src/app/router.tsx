@@ -33,6 +33,7 @@ const PaymentNewPage = lazy(() => import('@/features/payments/PaymentNewPage'))
 const ReturnsPage = lazy(() => import('@/features/returns/ReturnsPage'))
 const TerritoriesPage = lazy(() => import('@/features/territories/TerritoriesPage'))
 const UsersPage = lazy(() => import('@/features/users/UsersPage'))
+const UserDetailPage = lazy(() => import('@/features/users/UserDetailPage'))
 const TargetsPage = lazy(() => import('@/features/targets/TargetsPage'))
 const SchemesPage = lazy(() => import('@/features/schemes/SchemesPage'))
 const AnalyticsPage = lazy(() => import('@/features/analytics/AnalyticsPage'))
@@ -109,6 +110,7 @@ export const router = createBrowserRouter([
               { path: '/ai', element: <AiPage /> },
               { path: '/schemes', element: <SchemesPage /> },
               { path: '/users', element: <UsersPage /> },
+              { path: '/users/:id', element: <UserDetailPage /> },
             ],
           },
         ],
