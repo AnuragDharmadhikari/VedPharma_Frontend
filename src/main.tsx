@@ -14,11 +14,11 @@ createRoot(document.getElementById('root')!).render(
         <App />
         <Toaster
           position="top-right"
+          richColors
           toastOptions={{
             style: {
               background: 'var(--vp-bg-surface)',
               border: '1px solid var(--vp-border)',
-              color: 'var(--vp-text-primary)',
               boxShadow: 'var(--vp-shadow-lg)',
             },
           }}

@@ -254,6 +254,7 @@ export default function ProductDetailPage() {
 
   const [showEdit, setShowEdit] = useState(false)
   const [showDeactivate, setShowDeactivate] = useState(false)
+  const [showReactivate, setShowReactivate] = useState(false)
 
   const {
     data: productData,
@@ -303,6 +304,7 @@ export default function ProductDetailPage() {
         },
       }).unwrap()
       toast.success('Product reactivated successfully')
+      setShowReactivate(false)
     } catch (err: unknown) {
       const error = err as { data?: { message?: string } }
       toast.error(error?.data?.message ?? 'Failed to reactivate product')
@@ -425,7 +427,7 @@ export default function ProductDetailPage() {
               </button>
             ) : (
               <button
-                onClick={onReactivate}
+                onClick={() => setShowReactivate(true)}
                 className="flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-semibold transition-all"
                 style={{
                   background: 'var(--vp-teal-light)',
@@ -679,6 +681,37 @@ export default function ProductDetailPage() {
             >
               {deactivating && <Loader2 className="w-4 h-4 animate-spin" />}
               {deactivating ? 'Deactivating...' : 'Deactivate'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reactivate Confirmation ── */}
+      <Dialog open={showReactivate} onOpenChange={() => setShowReactivate(false)}>
+        <DialogContent
+          className="max-w-sm"
+          style={{ background: 'var(--vp-bg-surface)', border: '1px solid var(--vp-border)' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: 'var(--vp-text-primary)' }}>
+              Reactivate Product
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm mt-2" style={{ color: 'var(--vp-text-secondary)' }}>
+            Are you sure you want to reactivate{' '}
+            <strong style={{ color: 'var(--vp-text-primary)' }}>{product?.name}</strong>? It will
+            appear in active product lists and be selectable for visits and orders.
+          </p>
+          <div className="flex gap-3 mt-4">
+            <button onClick={() => setShowReactivate(false)} className="btn-secondary flex-1">
+              Cancel
+            </button>
+            <button
+              onClick={onReactivate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm"
+              style={{ background: 'var(--vp-teal)', color: '#FFFFFF' }}
+            >
+              <UserCheck className="w-4 h-4" /> Reactivate
             </button>
           </div>
         </DialogContent>

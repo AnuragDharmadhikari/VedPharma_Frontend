@@ -13,11 +13,17 @@ import {
   FlaskConical,
   ChevronRight,
   X,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAuth } from '@/shared/hooks/useAuth'
-import { useGetAllProductsQuery, useCreateProductMutation } from './productsApi'
+import {
+  useGetAllProductsQuery,
+  useGetAllProductsIncludingInactiveQuery,
+  useCreateProductMutation,
+} from './productsApi'
 import type { ProductDto } from '@/types/product'
 
 // ── GST rate config ───────────────────────────────────────────
@@ -238,10 +244,18 @@ export default function ProductsPage() {
   const { isOwnerOrManager } = useAuth()
 
   const [showCreate, setShowCreate] = useState(false)
-  const [search, setSearch] = useState('')
-  const [gstFilter, setGstFilter] = useState<'ALL' | 'GST_5' | 'GST_12' | 'GST_18'>('ALL')
+const [search, setSearch] = useState('')
+const [gstFilter, setGstFilter] = useState<'ALL' | 'GST_5' | 'GST_12' | 'GST_18'>('ALL')
+const [showInactive, setShowInactive] = useState(false)
 
-  const { data, isLoading } = useGetAllProductsQuery()
+  const { data: activeData, isLoading: activeLoading } = useGetAllProductsQuery()
+
+const { data: allData, isLoading: allLoading } = useGetAllProductsIncludingInactiveQuery(undefined, {
+  skip: !isOwnerOrManager || !showInactive,
+})
+
+const isLoading = activeLoading || allLoading
+const data = isOwnerOrManager && showInactive ? allData : activeData
 
   // ── Filter logic — same pattern as DoctorsPage ────────────
   const filtered = useMemo(() => {
@@ -282,14 +296,30 @@ export default function ProductsPage() {
             {total} products in catalogue
           </p>
         </div>
-        {isOwnerOrManager && (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="btn-primary flex items-center gap-2 text-sm self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4" /> Add Product
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+  {isOwnerOrManager && (
+    <button
+      onClick={() => setShowInactive(!showInactive)}
+      className="btn-secondary flex items-center gap-2 text-sm"
+      style={{
+        background: showInactive ? 'var(--vp-amber-light)' : undefined,
+        color: showInactive ? 'var(--vp-amber)' : undefined,
+        border: showInactive ? '1px solid rgba(245,158,11,0.3)' : undefined,
+      }}
+    >
+      {showInactive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+    </button>
+  )}
+  {isOwnerOrManager && (
+    <button
+      onClick={() => setShowCreate(true)}
+      className="btn-primary flex items-center gap-2 text-sm self-start sm:self-auto"
+    >
+      <Plus className="w-4 h-4" /> Add Product
+    </button>
+  )}
+</div>
       </div>
 
       {/* ── KPI Cards ── */}

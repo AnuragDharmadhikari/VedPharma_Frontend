@@ -38,6 +38,7 @@ import {
 import { useGetDoctorEngagementQuery } from '@/features/ai/aiApi'
 import type { UpdateDoctorRequest } from '@/types/doctor'
 import type { VisitDto } from '@/types/visit'
+import { useGetAllTerritoriesQuery } from '@/features/territories/territoriesApi'
 
 // ── Tier config — same as DoctorsPage for consistency ────────
 const tierConfig = {
@@ -117,6 +118,8 @@ interface EditDoctorModalProps {
 
 function EditDoctorModal({ open, onClose, doctorId, defaultValues }: EditDoctorModalProps) {
   const [updateDoctor, { isLoading }] = useUpdateDoctorMutation()
+  const { data: territoriesData } = useGetAllTerritoriesQuery()
+  const territories = territoriesData?.data ?? []
 
   const {
     register,
@@ -284,6 +287,27 @@ function EditDoctorModal({ open, onClose, doctorId, defaultValues }: EditDoctorM
               {errors.email && <p className="text-xs mt-1 text-rose-500">{errors.email.message}</p>}
             </div>
           </div>
+          {/* Territory */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Territory
+            </label>
+            <select
+              {...register('territoryId')}
+              className="input-dark"
+              style={{ background: 'var(--vp-bg-surface)' }}
+            >
+              <option value="">No territory assigned</option>
+              {territories.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.state}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
@@ -314,6 +338,7 @@ export default function DoctorDetailPage() {
   // UI state
   const [showEdit, setShowEdit] = useState(false)
   const [showDeactivate, setShowDeactivate] = useState(false)
+  const [showReactivate, setShowReactivate] = useState(false)
   // Controls the AI panel language — 'en' shows analysis/recommendations,
   // 'mr' shows analysisMr/recommendationsMr from the same DTO
   const [aiLang, setAiLang] = useState<'en' | 'mr'>('en')
@@ -360,6 +385,20 @@ export default function DoctorDetailPage() {
     } catch (err: unknown) {
       const error = err as { data?: { message?: string } }
       toast.error(error?.data?.message ?? 'Failed to deactivate doctor')
+    }
+  }
+
+  const onReactivate = async () => {
+    if (!id || !doctor) return
+    try {
+      await updateDoctorInline({
+        id: id!,
+        body: { ...editDefaultValues, isActive: true },
+      })
+      toast.success('Doctor reactivated successfully')
+      setShowReactivate(false)
+    } catch {
+      toast.error('Failed to reactivate doctor')
     }
   }
 
@@ -486,17 +525,7 @@ export default function DoctorDetailPage() {
               // Reactivation: calls updateDoctor with isActive: true
               // There is no separate /reactivate endpoint on the backend
               <button
-                onClick={async () => {
-                  try {
-                    await updateDoctorInline({
-                      id: id!,
-                      body: { ...editDefaultValues, isActive: true },
-                    })
-                    toast.success('Doctor reactivated successfully')
-                  } catch {
-                    toast.error('Failed to reactivate doctor')
-                  }
-                }}
+                onClick={() => setShowReactivate(true)}
                 className="flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-semibold transition-all"
                 style={{
                   background: 'var(--vp-teal-light)',
@@ -906,6 +935,34 @@ export default function DoctorDetailPage() {
             >
               {deactivating && <Loader2 className="w-4 h-4 animate-spin" />}
               {deactivating ? 'Deactivating...' : 'Deactivate'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* ── Reactivate Confirmation Modal ── */}
+      <Dialog open={showReactivate} onOpenChange={() => setShowReactivate(false)}>
+        <DialogContent
+          className="max-w-sm"
+          style={{ background: 'var(--vp-bg-surface)', border: '1px solid var(--vp-border)' }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: 'var(--vp-text-primary)' }}>Reactivate Doctor</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm mt-2" style={{ color: 'var(--vp-text-secondary)' }}>
+            Are you sure you want to reactivate{' '}
+            <strong style={{ color: 'var(--vp-text-primary)' }}>{doctor?.fullName}</strong>? They
+            will appear in active doctor lists again.
+          </p>
+          <div className="flex gap-3 mt-4">
+            <button onClick={() => setShowReactivate(false)} className="btn-secondary flex-1">
+              Cancel
+            </button>
+            <button
+              onClick={onReactivate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm"
+              style={{ background: 'var(--vp-teal)', color: '#FFFFFF' }}
+            >
+              <UserCheck className="w-4 h-4" /> Reactivate
             </button>
           </div>
         </DialogContent>

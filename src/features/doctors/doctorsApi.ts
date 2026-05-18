@@ -79,6 +79,13 @@ export const doctorsApi = baseApi.injectEndpoints({
       // 'Visit' tag — when a visit is created/updated, this list auto-refetches
       providesTags: ['Visit'],
     }),
+
+    // All doctors including inactive — Owner/Manager only
+    // GET /api/v1/doctors/all
+    getAllDoctorsIncludingInactive: builder.query<ApiResponse<DoctorDto[]>, void>({
+      query: () => ({ url: '/doctors/all', method: 'GET' }),
+      providesTags: ['Doctor'],
+    }),
   }),
 })
 
@@ -91,4 +98,5 @@ export const {
   useUpdateDoctorMutation,
   useDeactivateDoctorMutation,
   useGetVisitsByDoctorQuery,
+  useGetAllDoctorsIncludingInactiveQuery,
 } = doctorsApi

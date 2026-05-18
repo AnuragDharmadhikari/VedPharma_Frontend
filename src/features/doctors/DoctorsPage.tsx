@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/shared/hooks/useAuth'
 import {
   useGetAllDoctorsQuery,
+  useGetAllDoctorsIncludingInactiveQuery,
   useCreateDoctorMutation,
   useDeactivateDoctorMutation,
 } from './doctorsApi'
@@ -24,6 +25,8 @@ import {
   UserX,
   X,
   Loader2,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -156,6 +159,7 @@ function DoctorCard({ doctor, onView, onDeactivate, canDeactivate }: DoctorCardP
       </div>
 
       {/* Footer */}
+      {/* Footer */}
       <div
         className="flex items-center justify-between pt-3"
         style={{ borderTop: '1px solid var(--vp-border)' }}
@@ -170,23 +174,34 @@ function DoctorCard({ doctor, onView, onDeactivate, canDeactivate }: DoctorCardP
         >
           View details <ChevronRight className="w-3 h-3" />
         </button>
-        {canDeactivate && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDeactivate()
-            }}
-            className="flex items-center gap-1 text-xs font-medium transition-colors px-2.5 py-1.5 rounded-lg"
-            style={{
-              color: 'var(--vp-rose)',
-              background: 'var(--vp-rose-light)',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-          >
-            <UserX className="w-3 h-3" /> Deactivate
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Show inactive badge */}
+          {!doctor.isActive && (
+            <span
+              className="text-xs font-semibold px-2 py-1 rounded-full"
+              style={{ background: 'var(--vp-rose-light)', color: 'var(--vp-rose)' }}
+            >
+              Inactive
+            </span>
+          )}
+          {canDeactivate && doctor.isActive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeactivate()
+              }}
+              className="flex items-center gap-1 text-xs font-medium transition-colors px-2.5 py-1.5 rounded-lg"
+              style={{
+                color: 'var(--vp-rose)',
+                background: 'var(--vp-rose-light)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+            >
+              <UserX className="w-3 h-3" /> Deactivate
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -200,9 +215,21 @@ export default function DoctorsPage() {
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState<'ALL' | 'A' | 'B' | 'C'>('ALL')
   const [showCreate, setShowCreate] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
   const [deactivateTarget, setDeactivateTarget] = useState<DoctorDto | null>(null)
 
-  const { data, isLoading } = useGetAllDoctorsQuery()
+  const { data: activeData, isLoading: activeLoading } = useGetAllDoctorsQuery()
+
+  const { data: allData, isLoading: allLoading } = useGetAllDoctorsIncludingInactiveQuery(
+    undefined,
+    {
+      skip: !isOwnerOrManager || !showInactive,
+    }
+  )
+
+  const isLoading = activeLoading || allLoading
+
+  const data = isOwnerOrManager && showInactive ? allData : activeData
   const [createDoctor, { isLoading: creating }] = useCreateDoctorMutation()
   const [deactivateDoctor, { isLoading: deactivating }] = useDeactivateDoctorMutation()
 
@@ -275,16 +302,34 @@ export default function DoctorsPage() {
             Doctors
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--vp-text-muted)' }}>
-            {data?.data?.length ?? 0} active doctors
+            {isOwnerOrManager && showInactive
+              ? `${data?.data?.length ?? 0} total doctors (including inactive)`
+              : `${data?.data?.length ?? 0} active doctors`}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="btn-primary flex items-center gap-2 text-sm self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Add Doctor
-        </button>
+        <div className="flex items-center gap-2">
+          {isOwnerOrManager && (
+            <button
+              onClick={() => setShowInactive(!showInactive)}
+              className="btn-secondary flex items-center gap-2 text-sm"
+              style={{
+                background: showInactive ? 'var(--vp-amber-light)' : undefined,
+                color: showInactive ? 'var(--vp-amber)' : undefined,
+                border: showInactive ? '1px solid rgba(245,158,11,0.3)' : undefined,
+              }}
+            >
+              {showInactive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowCreate(true)}
+            className="btn-primary flex items-center gap-2 text-sm self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Add Doctor
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

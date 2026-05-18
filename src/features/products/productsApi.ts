@@ -1,14 +1,9 @@
 import { baseApi } from '@/app/baseApi'
 import type { ApiResponse } from '@/types/api'
-import type {
-  ProductDto,
-  CreateProductRequest,
-  UpdateProductRequest,
-} from '@/types/product'
+import type { ProductDto, CreateProductRequest, UpdateProductRequest } from '@/types/product'
 
 export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-
     // All active products — all roles
     // GET /api/v1/products
     getAllProducts: builder.query<ApiResponse<ProductDto[]>, void>({
@@ -46,7 +41,10 @@ export const productsApi = baseApi.injectEndpoints({
 
     // Update product — Owner/Manager only
     // PUT /api/v1/products/{id}
-    updateProduct: builder.mutation<ApiResponse<ProductDto>, { id: string; body: UpdateProductRequest }>({
+    updateProduct: builder.mutation<
+      ApiResponse<ProductDto>,
+      { id: string; body: UpdateProductRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/products/${id}`,
         method: 'PUT',
@@ -65,6 +63,12 @@ export const productsApi = baseApi.injectEndpoints({
       invalidatesTags: ['Product'],
     }),
 
+    // All products including inactive — Owner/Manager only
+    // GET /api/v1/products/all
+    getAllProductsIncludingInactive: builder.query<ApiResponse<ProductDto[]>, void>({
+      query: () => ({ url: '/products/all', method: 'GET' }),
+      providesTags: ['Product'],
+    }),
   }),
 })
 
@@ -75,4 +79,5 @@ export const {
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeactivateProductMutation,
+  useGetAllProductsIncludingInactiveQuery,
 } = productsApi

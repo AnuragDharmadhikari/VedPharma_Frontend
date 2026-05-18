@@ -68,6 +68,7 @@ export default function LoginPage() {
       toast.success('Welcome back!')
       navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
+      console.log('Login error:', JSON.stringify(err))
       const error = err as { data?: { message?: string } }
       toast.error(error?.data?.message ?? 'Login failed. Check your credentials.')
     }

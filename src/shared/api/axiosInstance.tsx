@@ -27,9 +27,14 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('vedpharm_token')
-      localStorage.removeItem('vedpharm_user')
-      window.location.href = '/login'
+      // Skip redirect for login endpoint — wrong credentials should show
+      // an error toast, not redirect to login (we're already on login)
+      const isLoginRequest = error.config?.url?.includes('/auth/login')
+      if (!isLoginRequest) {
+        localStorage.removeItem('vedpharm_token')
+        localStorage.removeItem('vedpharm_user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
