@@ -27,7 +27,13 @@ export interface AdjustStockRequest {
   reason: string
 }
 
-export type MovementType = 'SALE' | 'SAMPLE' | 'RETURN' | 'ADJUSTMENT' | 'EXPIRY_WRITEOFF'
+export type MovementType =
+  | 'INWARD'
+  | 'SALE'
+  | 'SAMPLE'
+  | 'RETURN'
+  | 'ADJUSTMENT'
+  | 'EXPIRY_WRITEOFF'
 
 export interface StockMovementDto {
   id: string
@@ -35,10 +41,10 @@ export interface StockMovementDto {
   batchNumber: string
   productId: string
   productName: string
-  movementType: MovementType  // ← was plain string
+  movementType: MovementType // ← was plain string
   quantity: number
   referenceId: string | null
-  referenceType: string | null  // ← MISSING field
+  referenceType: string | null // ← MISSING field
   notes: string | null
   createdAt: string
 }
