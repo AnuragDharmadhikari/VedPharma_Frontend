@@ -33,7 +33,8 @@ axiosInstance.interceptors.response.use(
       if (!isLoginRequest) {
         localStorage.removeItem('vedpharm_token')
         localStorage.removeItem('vedpharm_user')
-        window.location.href = '/login'
+        const currentPath = window.location.pathname
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
       }
     }
     return Promise.reject(error)

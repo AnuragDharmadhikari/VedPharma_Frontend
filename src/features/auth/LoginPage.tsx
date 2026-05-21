@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -43,6 +43,7 @@ const features = [
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuth()
   const [login, { isLoading }] = useLoginMutation()
   const [showPassword, setShowPassword] = useState(false)
@@ -63,9 +64,9 @@ export default function LoginPage() {
     try {
       await login(data).unwrap()
       toast.success('Welcome back!')
-      navigate('/dashboard', { replace: true })
+      const redirect = searchParams.get('redirect')
+      navigate(redirect ?? '/dashboard', { replace: true })
     } catch (err: unknown) {
-      console.log('Login error:', JSON.stringify(err))
       const error = err as { data?: { message?: string } }
       toast.error(error?.data?.message ?? 'Login failed. Check your credentials.')
     }
