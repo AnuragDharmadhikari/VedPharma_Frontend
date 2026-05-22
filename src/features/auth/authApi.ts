@@ -1,12 +1,11 @@
 import { baseApi } from '@/app/baseApi'
 import { setCredentials } from './authSlice'
-import type { LoginRequest, AuthResponse } from '@/types/auth'
+import type { LoginRequest, AuthResponse, RegisterRequest } from '@/types/auth'
 import type { ApiResponse } from '@/types/api'
 import type { UserDto } from '@/types/user'
 
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-
     // ── Login ─────────────────────────────────────────────────
     login: builder.mutation<ApiResponse<AuthResponse>, LoginRequest>({
       queryFn: async (credentials, { dispatch }, _extra, baseQuery) => {
@@ -56,7 +55,18 @@ export const authApi = baseApi.injectEndpoints({
       },
     }),
 
+    // Register new employee — Owner only
+    // POST /api/v1/auth/register
+    // Requires OWNER JWT — creates a new user and returns their token
+    register: builder.mutation<ApiResponse<AuthResponse>, RegisterRequest>({
+      query: (body) => ({
+        url: '/auth/register',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: ['User'],
+    }),
   }),
 })
 
-export const { useLoginMutation } = authApi
+export const { useLoginMutation, useRegisterMutation } = authApi

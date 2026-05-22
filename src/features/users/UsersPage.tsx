@@ -1,31 +1,36 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import { toast } from 'sonner'
-import { Users, Search, X, Shield, UserX, Loader2, Phone, Mail, Calendar } from 'lucide-react'
+import {
+  Users,
+  Search,
+  X,
+  Shield,
+  UserX,
+  Loader2,
+  Phone,
+  Mail,
+  Calendar,
+  Plus,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useGetAllUsersQuery, useDeactivateUserMutation } from './usersApi'
+import { useRegisterMutation } from '@/features/auth/authApi'
 import type { UserDto } from '@/types/user'
 import { useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 // ── Role config ───────────────────────────────────────────────
 const roleConfig = {
-  OWNER: {
-    label: 'Owner',
-    color: 'var(--vp-purple)',
-    bg: 'var(--vp-purple-light)',
-  },
-  MANAGER: {
-    label: 'Manager',
-    color: 'var(--vp-teal)',
-    bg: 'var(--vp-teal-light)',
-  },
-  REP: {
-    label: 'Sales Rep',
-    color: 'var(--vp-amber)',
-    bg: 'var(--vp-amber-light)',
-  },
+  OWNER: { label: 'Owner', color: 'var(--vp-purple)', bg: 'var(--vp-purple-light)' },
+  MANAGER: { label: 'Manager', color: 'var(--vp-teal)', bg: 'var(--vp-teal-light)' },
+  REP: { label: 'Sales Rep', color: 'var(--vp-amber)', bg: 'var(--vp-amber-light)' },
 }
 
 function RoleBadge({ role }: { role: string }) {
@@ -41,6 +46,258 @@ function RoleBadge({ role }: { role: string }) {
   )
 }
 
+// ── Register Employee schema ──────────────────────────────────
+// Mirrors backend RegisterRequest exactly:
+// fullName (@NotBlank), email (@Email @NotBlank),
+// password (@NotBlank @Size(min=8)), role (Role enum), phone (optional)
+const registerSchema = z
+  .object({
+    fullName: z.string().min(1, 'Full name is required'),
+    email: z.string().min(1, 'Email is required').pipe(z.email('Enter a valid email')),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm the password'),
+    role: z.enum(['MANAGER', 'REP'], { message: 'Please select a role' }),
+    phone: z.string().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+
+type RegisterForm = z.infer<typeof registerSchema>
+
+// ── RegisterEmployeeModal ─────────────────────────────────────
+interface RegisterEmployeeModalProps {
+  open: boolean
+  onClose: () => void
+}
+
+function RegisterEmployeeModal({ open, onClose }: RegisterEmployeeModalProps) {
+  const [register, { isLoading }] = useRegisterMutation()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const {
+    register: formRegister,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { role: 'REP' },
+  })
+
+  const onSubmit = async (data: RegisterForm) => {
+    try {
+      await register({
+        fullName: data.fullName,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        phone: data.phone || undefined,
+      }).unwrap()
+      toast.success(`${data.fullName} registered successfully`)
+      reset()
+      onClose()
+    } catch (err: unknown) {
+      const error = err as { data?: { message?: string } }
+      toast.error(error?.data?.message ?? 'Failed to register employee')
+    }
+  }
+
+  const handleClose = () => {
+    reset()
+    setShowPassword(false)
+    setShowConfirm(false)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        style={{ background: 'var(--vp-bg-surface)', border: '1px solid var(--vp-border)' }}
+      >
+        <DialogHeader>
+          <DialogTitle style={{ color: 'var(--vp-text-primary)' }}>
+            Register New Employee
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-xs mt-1" style={{ color: 'var(--vp-text-muted)' }}>
+          Creates a new VedPharm account. The employee can log in immediately with these
+          credentials.
+        </p>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+          {/* Full Name */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Full Name *
+            </label>
+            <input
+              {...formRegister('fullName')}
+              className="input-dark"
+              placeholder="Rahul Sharma"
+            />
+            {errors.fullName && (
+              <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
+                {errors.fullName.message}
+              </p>
+            )}
+          </div>
+
+          {/* Email */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Email Address *
+            </label>
+            <input
+              {...formRegister('email')}
+              type="email"
+              className="input-dark"
+              placeholder="rahul@vedpharm.com"
+            />
+            {errors.email && (
+              <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
+                {errors.email.message}
+              </p>
+            )}
+          </div>
+
+          {/* Role */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Role *
+            </label>
+            <select
+              {...formRegister('role')}
+              className="input-dark"
+              style={{ background: 'var(--vp-bg-surface)' }}
+            >
+              <option value="REP">Sales Rep — Field visits, orders</option>
+              <option value="MANAGER">Manager — Team oversight, reports</option>
+            </select>
+            {errors.role && (
+              <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
+                {errors.role.message}
+              </p>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Phone (optional)
+            </label>
+            <input {...formRegister('phone')} className="input-dark" placeholder="9876543210" />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Password *
+            </label>
+            <div className="relative">
+              <input
+                {...formRegister('password')}
+                type={showPassword ? 'text' : 'password'}
+                className="input-dark pr-12"
+                placeholder="Min. 8 characters"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md"
+                style={{ color: 'var(--vp-text-muted)' }}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-1.5"
+              style={{ color: 'var(--vp-text-secondary)' }}
+            >
+              Confirm Password *
+            </label>
+            <div className="relative">
+              <input
+                {...formRegister('confirmPassword')}
+                type={showConfirm ? 'text' : 'password'}
+                className="input-dark pr-12"
+                placeholder="Repeat password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md"
+                style={{ color: 'var(--vp-text-muted)' }}
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.confirmPassword && (
+              <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
+                {errors.confirmPassword.message}
+              </p>
+            )}
+          </div>
+
+          {/* Info note */}
+          <div
+            className="p-3 rounded-xl"
+            style={{ background: 'var(--vp-teal-light)', border: '1px solid rgba(0,196,154,0.2)' }}
+          >
+            <p className="text-xs font-medium" style={{ color: 'var(--vp-teal)' }}>
+              ℹ️ The employee will use this email and password to log in. Share credentials
+              securely. They can change their password from their profile after first login.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={handleClose} className="btn-secondary flex-1">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+            >
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isLoading ? 'Registering...' : 'Register Employee'}
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────
 export default function UsersPage() {
   const { user: currentUser, isOwner } = useAuth()
@@ -49,6 +306,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'OWNER' | 'MANAGER' | 'REP'>('ALL')
   const [deactivateTarget, setDeactivateTarget] = useState<UserDto | null>(null)
+  const [showRegister, setShowRegister] = useState(false)
 
   const { data, isLoading } = useGetAllUsersQuery()
   const [deactivateUser, { isLoading: deactivating }] = useDeactivateUserMutation()
@@ -99,6 +357,16 @@ export default function UsersPage() {
             {active} active team members
           </p>
         </div>
+
+        {/* Register Employee button — Owner only */}
+        {isOwner && (
+          <button
+            onClick={() => setShowRegister(true)}
+            className="btn-primary flex items-center gap-2 text-sm self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" /> Register Employee
+          </button>
+        )}
       </div>
 
       {/* ── KPI Cards ── */}
@@ -160,7 +428,6 @@ export default function UsersPage() {
 
       {/* ── Filters ── */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* Search */}
         <div className="relative flex-1">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
@@ -185,7 +452,6 @@ export default function UsersPage() {
           )}
         </div>
 
-        {/* Role filter pills */}
         <div className="flex gap-2">
           {(['ALL', 'OWNER', 'MANAGER', 'REP'] as const).map((role) => {
             const labels = { ALL: 'All', OWNER: 'Owner', MANAGER: 'Manager', REP: 'Rep' }
@@ -243,8 +509,17 @@ export default function UsersPage() {
               No team members found
             </p>
             <p className="text-sm" style={{ color: 'var(--vp-text-muted)' }}>
-              Try adjusting your search or filters
+              {search || roleFilter !== 'ALL'
+                ? 'Try adjusting your search or filters'
+                : isOwner
+                  ? 'Register your first employee to get started'
+                  : 'No team members to display'}
             </p>
+            {!search && roleFilter === 'ALL' && isOwner && (
+              <button onClick={() => setShowRegister(true)} className="btn-primary mt-4 text-sm">
+                Register Employee
+              </button>
+            )}
           </div>
         ) : (
           <div className="divide-y" style={{ borderColor: 'var(--vp-border)' }}>
@@ -319,10 +594,13 @@ export default function UsersPage() {
                     </div>
                   </div>
 
-                  {/* Actions — Owner only, cannot deactivate self */}
+                  {/* Deactivate — Owner only, not self */}
                   {isOwner && !isCurrentUser && user.isActive && (
                     <button
-                      onClick={() => setDeactivateTarget(user)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeactivateTarget(user)
+                      }}
                       className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl shrink-0"
                       style={{ background: 'var(--vp-rose-light)', color: 'var(--vp-rose)' }}
                       onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
@@ -337,6 +615,9 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {/* ── Register Employee Modal — Owner only ── */}
+      <RegisterEmployeeModal open={showRegister} onClose={() => setShowRegister(false)} />
 
       {/* ── Deactivate Confirmation ── */}
       <Dialog open={!!deactivateTarget} onOpenChange={() => setDeactivateTarget(null)}>
