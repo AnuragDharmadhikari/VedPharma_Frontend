@@ -4,7 +4,6 @@ import type { UserDto, UpdateUserRequest, ChangePasswordRequest } from '@/types/
 
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-
     // All users — Owner/Manager only
     // GET /api/v1/users
     getAllUsers: builder.query<ApiResponse<UserDto[]>, void>({
@@ -46,7 +45,10 @@ export const usersApi = baseApi.injectEndpoints({
 
     // Change password — all roles (own password only)
     // PATCH /api/v1/users/{id}/change-password
-    changePassword: builder.mutation<ApiResponse<void>, { id: string; body: ChangePasswordRequest }>({
+    changePassword: builder.mutation<
+      ApiResponse<void>,
+      { id: string; body: ChangePasswordRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/users/${id}/change-password`,
         method: 'PATCH',
@@ -64,6 +66,15 @@ export const usersApi = baseApi.injectEndpoints({
       invalidatesTags: ['User'],
     }),
 
+    // Reactivate user — Owner only
+    // PATCH /api/v1/users/{id}/reactivate
+    reactivateUser: builder.mutation<ApiResponse<void>, string>({
+      query: (id) => ({
+        url: `/users/${id}/reactivate`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['User'],
+    }),
   }),
 })
 
@@ -75,4 +86,5 @@ export const {
   useUpdateUserMutation,
   useChangePasswordMutation,
   useDeactivateUserMutation,
+  useReactivateUserMutation, 
 } = usersApi

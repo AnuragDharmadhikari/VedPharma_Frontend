@@ -14,11 +14,16 @@ import {
   Plus,
   Eye,
   EyeOff,
+  UserCheck,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAuth } from '@/shared/hooks/useAuth'
-import { useGetAllUsersQuery, useDeactivateUserMutation } from './usersApi'
+import {
+  useGetAllUsersQuery,
+  useDeactivateUserMutation,
+  useReactivateUserMutation,
+} from './usersApi'
 import { useRegisterMutation } from '@/features/auth/authApi'
 import type { UserDto } from '@/types/user'
 import { useNavigate } from 'react-router-dom'
@@ -310,6 +315,7 @@ export default function UsersPage() {
 
   const { data, isLoading } = useGetAllUsersQuery()
   const [deactivateUser, { isLoading: deactivating }] = useDeactivateUserMutation()
+  const [reactivateUser, { isLoading: reactivating }] = useReactivateUserMutation()
 
   const filtered = useMemo(() => {
     const users = data?.data ?? []
@@ -339,6 +345,16 @@ export default function UsersPage() {
     } catch (err: unknown) {
       const error = err as { data?: { message?: string } }
       toast.error(error?.data?.message ?? 'Failed to deactivate user')
+    }
+  }
+
+  const onReactivate = async (user: UserDto) => {
+    try {
+      await reactivateUser(user.id).unwrap()
+      toast.success(`${user.fullName} reactivated`)
+    } catch (err: unknown) {
+      const error = err as { data?: { message?: string } }
+      toast.error(error?.data?.message ?? 'Failed to reactivate user')
     }
   }
 
@@ -609,6 +625,22 @@ export default function UsersPage() {
                       <UserX className="w-3.5 h-3.5" /> Deactivate
                     </button>
                   )}
+                  {/* Reactivate — Owner only, not self, only when inactive */}
+                  {isOwner && !isCurrentUser && !user.isActive && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onReactivate(user)
+                      }}
+                      disabled={reactivating}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl shrink-0"
+                      style={{ background: 'var(--vp-teal-light)', color: 'var(--vp-teal)' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                    >
+                      <UserCheck className="w-3.5 h-3.5" /> Reactivate
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -633,7 +665,7 @@ export default function UsersPage() {
             <strong style={{ color: 'var(--vp-text-primary)' }}>
               {deactivateTarget?.fullName}
             </strong>
-            ? They will lose access to VedPharm immediately. This cannot be undone from the UI.
+            ? They will lose access to VedPharm immediately.
           </p>
           <div className="flex gap-3 mt-4">
             <button onClick={() => setDeactivateTarget(null)} className="btn-secondary flex-1">
