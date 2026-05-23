@@ -9,20 +9,18 @@ export interface AuthUser {
   role: 'OWNER' | 'MANAGER' | 'REP'
 }
 
-interface AuthState { 
+interface AuthState {
   user: AuthUser | null
-  token: string | null
   isAuthenticated: boolean
 }
 
-// ── 2. Rehydrate from localStorage ───────────────────────────
-const storedToken = localStorage.getItem('vedpharm_token')
-const storedUser = localStorage.getItem('vedpharm_user')
-
+// ── 2. Initial state ──────────────────────────────────────────
+// No longer reading from localStorage — JWT is in httpOnly cookie
+// User info is stored only in Redux memory (lost on page refresh)
+// On refresh, the app will call /users/me to rehydrate user info
 const initialState: AuthState = {
-  token: storedToken ?? null,
-  user: storedUser ? JSON.parse(storedUser) : null,
-  isAuthenticated: !!storedToken,
+  user: null,
+  isAuthenticated: false,
 }
 
 // ── 3. Slice ──────────────────────────────────────────────────
@@ -30,19 +28,15 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<{ user: AuthUser; token: string }>) => {
+    // Called after successful login — stores user info in Redux
+    // Token is NOT stored here — it lives in the httpOnly cookie set by backend
+    setCredentials: (state, action: PayloadAction<{ user: AuthUser }>) => {
       state.user = action.payload.user
-      state.token = action.payload.token
       state.isAuthenticated = true
-      localStorage.setItem('vedpharm_token', action.payload.token)
-      localStorage.setItem('vedpharm_user', JSON.stringify(action.payload.user))
     },
     logout: (state) => {
       state.user = null
-      state.token = null    
       state.isAuthenticated = false
-      localStorage.removeItem('vedpharm_token')
-      localStorage.removeItem('vedpharm_user')
     },
   },
 })

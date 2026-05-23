@@ -11,9 +11,10 @@ export interface RegisterRequest {
   phone?: string
 }
 
-// This matches the real backend AuthResponse exactly
+// Backend now returns user info directly — token is set as httpOnly cookie
+// No longer contains accessToken, tokenType, expiresIn
 export interface AuthResponse {
-  accessToken: string
-  tokenType: string
-  expiresIn: number
+  email: string
+  role: string
+  fullName: string
 }

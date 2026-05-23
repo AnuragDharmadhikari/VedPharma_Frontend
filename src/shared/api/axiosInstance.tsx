@@ -8,14 +8,20 @@ export const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000,
+  // withCredentials — tells browser to send cookies with every request
+  // Without this, httpOnly cookies are NOT sent on cross-origin requests
+  withCredentials: true,
 })
 
-// ── 2. Request interceptor — attach JWT ──────────────────────
+// ── 2. Request interceptor — attach CSRF token ───────────────
+// With httpOnly cookie auth, we no longer attach Authorization header
+// Instead we read the XSRF-TOKEN cookie and send it as X-XSRF-TOKEN header
+// Spring Security validates this header to prevent CSRF attacks
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('vedpharm_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    const csrfToken = getCookie('XSRF-TOKEN')
+    if (csrfToken) {
+      config.headers['X-XSRF-TOKEN'] = csrfToken
     }
     return config
   },
@@ -27,12 +33,8 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Skip redirect for login endpoint — wrong credentials should show
-      // an error toast, not redirect to login (we're already on login)
       const isLoginRequest = error.config?.url?.includes('/auth/login')
       if (!isLoginRequest) {
-        localStorage.removeItem('vedpharm_token')
-        localStorage.removeItem('vedpharm_user')
         const currentPath = window.location.pathname
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
       }
@@ -41,7 +43,13 @@ axiosInstance.interceptors.response.use(
   }
 )
 
-// ── 4. RTK Query compatible base query ───────────────────────
+// ── 4. Helper — read a cookie by name ───────────────────────
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+  return match ? decodeURIComponent(match[2]) : null
+}
+
+// ── 5. RTK Query compatible base query ───────────────────────
 export const axiosBaseQuery: BaseQueryFn<AxiosRequestConfig, unknown, unknown> = async (config) => {
   try {
     const result = await axiosInstance(config)

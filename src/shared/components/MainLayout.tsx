@@ -2,18 +2,43 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import {
-  LayoutDashboard, Users, UserRound, MapPin, Pill,
-  Warehouse, ClipboardList, ShoppingCart, FileText,
-  CreditCard, RotateCcw, Tag, Target, BarChart3,
-  Brain, Shield, ChevronLeft, ChevronRight, LogOut,
-  Settings, Menu, X, Building2, Stethoscope,
-  FlaskConical, Sun, Moon,
+  LayoutDashboard,
+  Users,
+  UserRound,
+  MapPin,
+  Pill,
+  Warehouse,
+  ClipboardList,
+  ShoppingCart,
+  FileText,
+  CreditCard,
+  RotateCcw,
+  Tag,
+  Target,
+  BarChart3,
+  Brain,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Settings,
+  Menu,
+  X,
+  Building2,
+  Stethoscope,
+  FlaskConical,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { logout } from '@/features/auth/authSlice'
+import { useLogoutMutation } from '@/features/auth/authApi'
 import { useAuth } from '@/shared/hooks/useAuth'
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useLayout } from '@/shared/components/LayoutContext'
@@ -47,22 +72,77 @@ const navSections = [
   {
     title: 'Business',
     items: [
-      { label: 'Stockists', path: '/stockists', icon: <Building2 className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Invoices', path: '/invoices', icon: <FileText className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Payments', path: '/payments', icon: <CreditCard className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Returns', path: '/returns', icon: <RotateCcw className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Schemes', path: '/schemes', icon: <Tag className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Territories', path: '/territories', icon: <MapPin className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Targets', path: '/targets', icon: <Target className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Analytics', path: '/analytics', icon: <BarChart3 className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'AI Intelligence', path: '/ai', icon: <Brain className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
+      {
+        label: 'Stockists',
+        path: '/stockists',
+        icon: <Building2 className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Invoices',
+        path: '/invoices',
+        icon: <FileText className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Payments',
+        path: '/payments',
+        icon: <CreditCard className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Returns',
+        path: '/returns',
+        icon: <RotateCcw className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Schemes',
+        path: '/schemes',
+        icon: <Tag className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Territories',
+        path: '/territories',
+        icon: <MapPin className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Targets',
+        path: '/targets',
+        icon: <Target className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Analytics',
+        path: '/analytics',
+        icon: <BarChart3 className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'AI Intelligence',
+        path: '/ai',
+        icon: <Brain className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
     ] as NavItem[],
   },
   {
     title: 'Admin',
     items: [
-      { label: 'Users', path: '/users', icon: <Users className="w-4 h-4" />, roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
-      { label: 'Audit Log', path: '/audit', icon: <Shield className="w-4 h-4" />, roles: ['OWNER'] as Array<'OWNER' | 'MANAGER' | 'REP'> },
+      {
+        label: 'Users',
+        path: '/users',
+        icon: <Users className="w-4 h-4" />,
+        roles: ['OWNER', 'MANAGER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
+      {
+        label: 'Audit Log',
+        path: '/audit',
+        icon: <Shield className="w-4 h-4" />,
+        roles: ['OWNER'] as Array<'OWNER' | 'MANAGER' | 'REP'>,
+      },
     ] as NavItem[],
   },
 ]
@@ -144,10 +224,7 @@ function SidebarContent({ collapsed, role, onNavClick }: SidebarContentProps) {
       </nav>
 
       {/* Profile */}
-      <div
-        className="px-2 py-2 shrink-0"
-        style={{ borderTop: '1px solid var(--vp-border)' }}
-      >
+      <div className="px-2 py-2 shrink-0" style={{ borderTop: '1px solid var(--vp-border)' }}>
         <NavLink
           to="/profile"
           onClick={onNavClick}
@@ -172,13 +249,25 @@ export default function MainLayout() {
   const { theme, toggleTheme } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const handleLogout = () => {
+  const [logoutApi] = useLogoutMutation()
+
+  const handleLogout = async () => {
+    try {
+      await logoutApi().unwrap()
+    } catch {
+      // Even if backend call fails, clear local state
+    }
     dispatch(logout())
     navigate('/login', { replace: true })
   }
 
   const getInitials = (name: string) =>
-    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
 
   return (
     <div
@@ -246,7 +335,6 @@ export default function MainLayout() {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-
         {/* Topbar */}
         <header
           className="flex items-center justify-between px-4 sm:px-6 h-14 shrink-0"
@@ -283,7 +371,6 @@ export default function MainLayout() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 sm:gap-3">
-
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
@@ -295,10 +382,7 @@ export default function MainLayout() {
               }}
               title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             >
-              {theme === 'light'
-                ? <Moon className="w-4 h-4" />
-                : <Sun className="w-4 h-4" />
-              }
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
             {/* Role badge */}
@@ -307,7 +391,8 @@ export default function MainLayout() {
             {/* User dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-xl p-1.5 transition-colors outline-none"
+                <button
+                  className="flex items-center gap-2 rounded-xl p-1.5 transition-colors outline-none"
                   style={{ background: 'var(--vp-bg-hover)' }}
                 >
                   <Avatar className="w-7 h-7">

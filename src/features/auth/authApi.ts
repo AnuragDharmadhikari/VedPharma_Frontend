@@ -7,9 +7,12 @@ import type { UserDto } from '@/types/user'
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // ── Login ─────────────────────────────────────────────────
+    // Backend sets JWT as httpOnly cookie on success
+    // Response body contains email, role, fullName — no token
     login: builder.mutation<ApiResponse<AuthResponse>, LoginRequest>({
       queryFn: async (credentials, { dispatch }, _extra, baseQuery) => {
         // Step 1 — Call login endpoint
+        // Backend sets httpOnly cookie "vedpharm_jwt" automatically
         const result = await baseQuery({
           url: '/auth/login',
           method: 'POST',
@@ -19,28 +22,23 @@ export const authApi = baseApi.injectEndpoints({
         if (result.error) return { error: result.error }
 
         const response = result.data as ApiResponse<AuthResponse>
-        const token = response.data.accessToken
 
-        // Step 2 — Fetch current user profile using the new token
-        // We need the user's role, fullName, email for the Redux store
-        // But the login response only gives us the token
-        // So we immediately call /users/me with the fresh token
+        // Step 2 — Fetch current user profile to get the UUID
+        // AuthResponse gives us email/role/fullName but not the UUID
+        // We need UUID for the auth store so useAuth().user.id works
         const userResult = await baseQuery({
           url: '/users/me',
           method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
         })
 
         if (userResult.error) return { error: userResult.error }
 
         const userResponse = userResult.data as ApiResponse<UserDto>
 
-        // Step 3 — Store credentials in Redux + localStorage
+        // Step 3 — Store user info in Redux only — no localStorage
+        // Token lives in the httpOnly cookie managed by the browser
         dispatch(
           setCredentials({
-            token,
             user: {
               id: userResponse.data.id,
               username: userResponse.data.email,
@@ -55,9 +53,18 @@ export const authApi = baseApi.injectEndpoints({
       },
     }),
 
+    // ── Logout ────────────────────────────────────────────────
+    // Calls backend to clear the httpOnly cookie
+    // Cannot clear httpOnly cookies from JavaScript — must go through server
+    logout: builder.mutation<ApiResponse<void>, void>({
+      query: () => ({
+        url: '/auth/logout',
+        method: 'POST',
+      }),
+    }),
+
     // Register new employee — Owner only
     // POST /api/v1/auth/register
-    // Requires OWNER JWT — creates a new user and returns their token
     register: builder.mutation<ApiResponse<AuthResponse>, RegisterRequest>({
       query: (body) => ({
         url: '/auth/register',
@@ -69,4 +76,4 @@ export const authApi = baseApi.injectEndpoints({
   }),
 })
 
-export const { useLoginMutation, useRegisterMutation } = authApi
+export const { useLoginMutation, useLogoutMutation, useRegisterMutation } = authApi
