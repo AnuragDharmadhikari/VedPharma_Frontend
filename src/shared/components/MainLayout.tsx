@@ -43,6 +43,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useLayout } from '@/shared/components/LayoutContext'
 import { useTheme } from '@/shared/hooks/useTheme'
+import akunerLogo from '@/assets/logo-symbol.svg'
 
 interface NavItem {
   label: string
@@ -166,19 +167,14 @@ function SidebarContent({ collapsed, role, onNavClick }: SidebarContentProps) {
         className="flex items-center gap-3 px-4 h-14 shrink-0"
         style={{ borderBottom: '1px solid var(--vp-border)' }}
       >
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 animate-pulse-ring"
-          style={{ background: 'var(--vp-grad-teal)' }}
-        >
-          <Pill className="w-4 h-4 text-white" />
-        </div>
+        <img src={akunerLogo} alt="Akuner" className="w-8 h-8 shrink-0" />
         {!collapsed && (
           <div>
             <p
               className="text-sm font-bold leading-none"
               style={{ color: 'var(--vp-text-primary)' }}
             >
-              VedPharm
+              Akuner
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--vp-text-muted)' }}>
               CRM Platform
@@ -355,14 +351,9 @@ export default function MainLayout() {
 
           {/* Mobile brand */}
           <div className="flex items-center gap-2 md:hidden">
-            <div
-              className="w-6 h-6 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--vp-grad-teal)' }}
-            >
-              <Pill className="w-3 h-3 text-white" />
-            </div>
+            <img src={akunerLogo} alt="Akuner" className="w-6 h-6" />
             <span className="text-sm font-bold" style={{ color: 'var(--vp-text-primary)' }}>
-              VedPharm
+              Akuner
             </span>
           </div>
 

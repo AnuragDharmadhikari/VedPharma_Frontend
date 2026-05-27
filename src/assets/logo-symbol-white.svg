@@ -1,0 +1,10 @@
+<svg width="48" height="48" viewBox="0 0 120 120" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Akuner</title>
+  <g transform="translate(60, 60) rotate(45)">
+    <rect x="-40" y="-40" width="80" height="80" rx="4" fill="none" stroke="white" stroke-width="5"/>
+  </g>
+  <g transform="translate(60, 60) rotate(45)">
+    <rect x="-28" y="-28" width="56" height="56" rx="3" fill="#C41E3A"/>
+  </g>
+  <text x="60" y="68" text-anchor="middle" font-family="Georgia, serif" font-size="38" font-style="italic" font-weight="700" fill="white">a</text>
+</svg>

@@ -130,8 +130,7 @@ function RegisterEmployeeModal({ open, onClose }: RegisterEmployeeModalProps) {
         </DialogHeader>
 
         <p className="text-xs mt-1" style={{ color: 'var(--vp-text-muted)' }}>
-          Creates a new VedPharm account. The employee can log in immediately with these
-          credentials.
+          Creates a new Akuner account. The employee can log in immediately with these credentials.
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
@@ -167,7 +166,7 @@ function RegisterEmployeeModal({ open, onClose }: RegisterEmployeeModalProps) {
               {...formRegister('email')}
               type="email"
               className="input-dark"
-              placeholder="rahul@vedpharm.com"
+              placeholder="anurag@akuner.in"
             />
             {errors.email && (
               <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
@@ -665,7 +664,7 @@ export default function UsersPage() {
             <strong style={{ color: 'var(--vp-text-primary)' }}>
               {deactivateTarget?.fullName}
             </strong>
-            ? They will lose access to VedPharm immediately.
+            ? They will lose access to Akuner CRM immediately.
           </p>
           <div className="flex gap-3 mt-4">
             <button onClick={() => setDeactivateTarget(null)} className="btn-secondary flex-1">

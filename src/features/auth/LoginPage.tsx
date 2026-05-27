@@ -4,9 +4,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Pill, Eye, EyeOff, Loader2, Brain, BarChart3, ClipboardList, FileText } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Brain, BarChart3, ClipboardList, FileText } from 'lucide-react'
 import { useLoginMutation } from './authApi'
 import { useAuth } from '@/shared/hooks/useAuth'
+import akunerLogo from '@/assets/logo-symbol.svg'
+import akunerLogoWhite from '@/assets/logo-symbol-white.svg'
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').pipe(z.email('Enter a valid email address')),
@@ -97,30 +99,13 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10">
-          <div className="flex items-center gap-4">
-            {/* White bg with teal icon — pops against purple gradient */}
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-              style={{
-                background: '#FFFFFF',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.20)',
-              }}
-            >
-              <Pill className="w-7 h-7" style={{ color: 'var(--vp-teal)' }} />
-            </div>
+          <div className="flex items-center gap-3">
+            <img src={akunerLogoWhite} alt="Akuner" className="w-12 h-12" />
             <div>
-              <p
-                className="font-bold text-2xl leading-none text-white"
-                style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
-              >
-                VedPharm
+              <p className="font-bold text-2xl leading-none text-white">Akuner</p>
+              <p className="text-white/70 text-xs font-semibold tracking-widest uppercase mt-1">
+                Life Sciences
               </p>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-300" />
-                <p className="text-white/70 text-xs font-semibold tracking-widest uppercase">
-                  CRM Platform
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -186,18 +171,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md relative z-10">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden animate-fade-up">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--vp-grad-teal)' }}
-            >
-              <Pill className="w-5 h-5 text-white" />
-            </div>
+            <img src={akunerLogo} alt="Akuner" className="w-10 h-10" />
             <div>
               <p className="font-bold text-lg" style={{ color: 'var(--vp-text-primary)' }}>
-                VedPharm
+                Akuner
               </p>
               <p className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>
-                CRM Platform
+                Life Sciences
               </p>
             </div>
           </div>
@@ -213,12 +193,7 @@ export default function LoginPage() {
           >
             {/* Card header */}
             <div className="flex items-center gap-4 mb-8">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: 'var(--vp-grad-primary)' }}
-              >
-                <Pill className="w-7 h-7 text-white" />
-              </div>
+              <img src={akunerLogo} alt="Akuner" className="w-14 h-14" />
               <div>
                 <h2
                   className="text-2xl font-bold leading-tight"
@@ -227,7 +202,7 @@ export default function LoginPage() {
                   Welcome back
                 </h2>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--vp-text-muted)' }}>
-                  Sign in to your VedPharm account
+                  Sign in to your Akuner account
                 </p>
               </div>
             </div>
