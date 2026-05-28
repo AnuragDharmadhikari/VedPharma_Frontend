@@ -1,7 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { Suspense } from 'react'
 import { useSelector } from 'react-redux'
-import { selectIsAuthenticated, selectCurrentUserRole } from '@/features/auth/authSlice'
+import {
+  selectIsAuthenticated,
+  selectCurrentUserRole,
+  selectIsInitializing,
+} from '@/features/auth/authSlice'
 
 function PageLoader() {
   return (
@@ -30,19 +34,25 @@ export function SuspenseWrapper() {
 
 export function PublicRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated)
+  const isInitializing = useSelector(selectIsInitializing)
+  if (isInitializing) return <PageLoader />
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
 
 export function ProtectedRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated)
+  const isInitializing = useSelector(selectIsInitializing)
+  if (isInitializing) return <PageLoader />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <Outlet />
 }
 
 export function OwnerRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated)
+  const isInitializing = useSelector(selectIsInitializing)
   const role = useSelector(selectCurrentUserRole)
+  if (isInitializing) return <PageLoader />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (role !== 'OWNER') return <Navigate to="/dashboard" replace />
   return <Outlet />
@@ -50,7 +60,9 @@ export function OwnerRoute() {
 
 export function ManagerRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated)
+  const isInitializing = useSelector(selectIsInitializing)
   const role = useSelector(selectCurrentUserRole)
+  if (isInitializing) return <PageLoader />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (role !== 'OWNER' && role !== 'MANAGER') return <Navigate to="/dashboard" replace />
   return <Outlet />

@@ -1,36 +1,56 @@
 import { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
-import { setCredentials } from '@/features/auth/authSlice'
+import { setCredentials, setInitialized } from '@/features/auth/authSlice'
 import { axiosInstance } from '@/shared/api/axiosInstance'
 import type { ApiResponse } from '@/types/api'
 import type { UserDto } from '@/types/user'
 
-// Runs once on app startup — checks if a valid JWT cookie exists
-// by calling /users/me. If the cookie is valid, backend returns user data
-// and we populate the Redux auth state. If not, user stays unauthenticated.
-// This handles page refresh without requiring re-login.
+// Runs once on app startup — rehydrates auth state from JWT cookie
+// Flow:
+//   1. Try /users/me with existing access token
+//   2. If 401 → try /auth/refresh to get new access token
+//   3. If refresh succeeds → retry /users/me
+//   4. If refresh fails → user must log in again
 export default function AuthInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch()
 
   useEffect(() => {
     const rehydrate = async () => {
       try {
+        // Step 1 — try with existing access token
         const response = await axiosInstance.get<ApiResponse<UserDto>>('/users/me')
-        const user = response.data.data
         dispatch(
           setCredentials({
             user: {
-              id: user.id,
-              username: user.email,
-              fullName: user.fullName,
-              email: user.email,
-              role: user.role,
+              id: response.data.data.id,
+              username: response.data.data.email,
+              fullName: response.data.data.fullName,
+              email: response.data.data.email,
+              role: response.data.data.role,
             },
           })
         )
       } catch {
-        // Cookie doesn't exist or is expired — user stays unauthenticated
-        // ProtectedRoute will redirect to login when they try to access protected pages
+        try {
+          // Step 2 — access token expired, try refresh
+          await axiosInstance.post('/auth/refresh')
+          // Step 3 — refresh succeeded, retry /users/me
+          const response = await axiosInstance.get<ApiResponse<UserDto>>('/users/me')
+          dispatch(
+            setCredentials({
+              user: {
+                id: response.data.data.id,
+                username: response.data.data.email,
+                fullName: response.data.data.fullName,
+                email: response.data.data.email,
+                role: response.data.data.role,
+              },
+            })
+          )
+        } catch {
+          // Step 4 — both tokens invalid, user must login
+          dispatch(setInitialized())
+        }
       }
     }
 
