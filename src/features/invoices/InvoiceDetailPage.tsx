@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
@@ -12,9 +13,12 @@ import {
   Hash,
   ChevronRight,
   CreditCard,
+  Download,
+  Loader2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useGetInvoiceByIdQuery } from './invoicesApi'
+import { useGetInvoiceByIdQuery, useLazyDownloadInvoicePdfQuery } from './invoicesApi'
 import { useGetAllPaymentsQuery } from '@/features/payments/paymentsApi'
 import type { InvoiceLineItemDto } from '@/types/billing'
 
@@ -57,6 +61,8 @@ export default function InvoiceDetailPage() {
 
   const { data: invoiceData, isLoading, isError } = useGetInvoiceByIdQuery(id ?? '', { skip: !id })
   const { data: paymentsData } = useGetAllPaymentsQuery()
+  const [downloadPdf] = useLazyDownloadInvoicePdfQuery()
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const invoice = invoiceData?.data
 
@@ -75,6 +81,28 @@ export default function InvoiceDetailPage() {
       return sum + Number(alloc?.allocatedAmount ?? 0)
     }, 0)
   }, [invoicePayments, invoice])
+
+  // ── Download PDF handler ──────────────────────────────────
+  const handleDownloadPdf = async () => {
+    if (!invoice) return
+    setIsDownloading(true)
+    try {
+      const result = await downloadPdf(invoice.id).unwrap()
+      const url = window.URL.createObjectURL(new Blob([result]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `${invoice.invoiceNumber}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Invoice PDF downloaded')
+    } catch {
+      toast.error('Failed to download PDF')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -150,12 +178,32 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate(`/orders/${invoice.orderId}`)}
-          className="btn-secondary flex items-center gap-2 text-sm self-start sm:self-auto"
-        >
-          <ChevronRight className="w-4 h-4" /> View Order
-        </button>
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isDownloading}
+            className="flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-semibold transition-all"
+            style={{
+              background: 'var(--vp-teal-light)',
+              color: 'var(--vp-teal)',
+              border: '1px solid rgba(0,196,154,0.2)',
+            }}
+          >
+            {isDownloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {isDownloading ? 'Downloading...' : 'Download PDF'}
+          </button>
+          <button
+            onClick={() => navigate(`/orders/${invoice.orderId}`)}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <ChevronRight className="w-4 h-4" /> View Order
+          </button>
+        </div>
       </div>
 
       {/* ── Main Grid ── */}
@@ -511,15 +559,12 @@ export default function InvoiceDetailPage() {
                         (e.currentTarget.style.background = 'var(--vp-bg-surface-alt)')
                       }
                     >
-                      {/* Mode icon */}
                       <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold"
                         style={{ background: `${modeColor}15`, color: modeColor }}
                       >
                         {payment.paymentMode}
                       </div>
-
-                      {/* Payment info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p
@@ -551,8 +596,6 @@ export default function InvoiceDetailPage() {
                           )}
                         </div>
                       </div>
-
-                      {/* Allocated amount + remaining */}
                       <div className="text-right shrink-0">
                         <div className="flex items-center gap-0.5 justify-end">
                           <IndianRupee
@@ -576,7 +619,6 @@ export default function InvoiceDetailPage() {
                 })}
               </div>
 
-              {/* Total paid summary */}
               <div
                 className="flex items-center justify-between mt-4 pt-4"
                 style={{ borderTop: '1px solid var(--vp-border)' }}

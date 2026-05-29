@@ -43,9 +43,25 @@ export const invoicesApi = baseApi.injectEndpoints({
     }),
 
     getOutstandingInvoices: builder.query<ApiResponse<OutstandingInvoiceDto[]>, void>({
-  query: () => ({ url: '/invoices/outstanding', method: 'GET' }),
-  providesTags: ['Invoice'],
-}),
+      query: () => ({ url: '/invoices/outstanding', method: 'GET' }),
+      providesTags: ['Invoice'],
+    }),
+
+    // Download invoice PDF — returns blob for browser download
+    // GET /api/v1/invoices/{id}/pdf
+    downloadInvoicePdf: builder.query<Blob, string>({
+      queryFn: async (id) => {
+        try {
+          const { axiosInstance } = await import('@/shared/api/axiosInstance')
+          const response = await axiosInstance.get(`/invoices/${id}/pdf`, {
+            responseType: 'blob',
+          })
+          return { data: response.data as Blob }
+        } catch (error) {
+          return { error: { status: 'FETCH_ERROR', error: String(error) } }
+        }
+      },
+    }),
   }),
 })
 
@@ -55,4 +71,5 @@ export const {
   useGenerateInvoiceMutation,
   useUpdateInvoiceStatusMutation,
   useGetOutstandingInvoicesQuery,
+  useLazyDownloadInvoicePdfQuery,
 } = invoicesApi
