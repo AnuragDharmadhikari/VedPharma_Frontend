@@ -1,7 +1,7 @@
 export interface StockistDto {
   id: string
-  assignedRepId: string      
-  assignedRepName: string    
+  assignedRepId: string
+  assignedRepName: string
   firmName: string
   ownerName: string
   gstin: string | null
@@ -9,13 +9,14 @@ export interface StockistDto {
   city: string
   address: string | null
   phone: string
+  email: string | null
   isActive: boolean
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateStockistRequest {
-  assignedRepId: string      
+  assignedRepId: string
   firmName: string
   ownerName: string
   gstin?: string
@@ -23,10 +24,11 @@ export interface CreateStockistRequest {
   city: string
   address?: string
   phone: string
+  email?: string
 }
 
 export interface UpdateStockistRequest {
-  assignedRepId: string     
+  assignedRepId: string
   firmName: string
   ownerName: string
   gstin?: string
@@ -34,5 +36,6 @@ export interface UpdateStockistRequest {
   city: string
   address?: string
   phone: string
+  email?: string
   isActive?: boolean
 }

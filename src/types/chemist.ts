@@ -8,6 +8,7 @@ export interface ChemistDto {
   city: string
   address: string | null
   phone: string
+  email: string | null
   assignedRepId: string
   assignedRepName: string
   isActive: boolean
@@ -25,6 +26,7 @@ export interface CreateChemistRequest {
   city: string
   address?: string
   phone: string
+  email?: string
 }
 
 export interface UpdateChemistRequest {
@@ -37,5 +39,6 @@ export interface UpdateChemistRequest {
   city: string
   address?: string
   phone: string
+  email?: string
   isActive?: boolean
 }

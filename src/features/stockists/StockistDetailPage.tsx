@@ -47,6 +47,7 @@ const editStockistSchema = z.object({
   city: z.string().min(1, 'City is required'),
   address: z.string().optional(),
   phone: z.string().min(1, 'Phone is required'),
+  email: z.string().email('Invalid email format').optional().or(z.literal('')),
 })
 
 type EditStockistForm = z.infer<typeof editStockistSchema>
@@ -119,6 +120,7 @@ export default function StockistDetailPage() {
           city: data.city,
           address: data.address || undefined,
           phone: data.phone,
+          email: data.email || undefined,
           isActive: stockist?.isActive,
         },
       }).unwrap()
@@ -157,6 +159,7 @@ export default function StockistDetailPage() {
           city: stockist.city,
           address: stockist.address || undefined,
           phone: stockist.phone,
+          email: stockist.email ?? '',
           isActive: true,
         },
       }).unwrap()
@@ -202,6 +205,7 @@ export default function StockistDetailPage() {
     { icon: <MapPin className="w-4 h-4" />, label: 'City', value: stockist.city },
     { icon: <MapPin className="w-4 h-4" />, label: 'State', value: stockist.state },
     { icon: <Phone className="w-4 h-4" />, label: 'Phone', value: stockist.phone },
+    { icon: <Phone className="w-4 h-4" />, label: 'Email', value: stockist.email ?? 'Not provided' },
     { icon: <Hash className="w-4 h-4" />, label: 'GSTIN', value: stockist.gstin ?? 'Not provided' },
     { icon: <User className="w-4 h-4" />, label: 'Assigned Rep', value: stockist.assignedRepName },
     {
@@ -262,6 +266,7 @@ export default function StockistDetailPage() {
                   city: stockist.city,
                   address: stockist.address ?? '',
                   phone: stockist.phone,
+                  email: stockist.email ?? '',
                 })
                 setShowEdit(true)
               }}
@@ -729,6 +734,25 @@ export default function StockistDetailPage() {
                 {errors.phone && (
                   <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
                     {errors.phone.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label
+                  className="block text-sm font-semibold mb-1.5"
+                  style={{ color: 'var(--vp-text-secondary)' }}
+                >
+                  Email (for invoice notifications)
+                </label>
+                <input
+                  {...register('email')}
+                  type="email"
+                  placeholder="optional"
+                  className="input-dark"
+                />
+                {errors.email && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--vp-rose)' }}>
+                    {errors.email.message}
                   </p>
                 )}
               </div>
